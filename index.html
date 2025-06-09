@@ -39,6 +39,10 @@
             border-radius: 9999px;
             padding: 2px;
         }
+        /* Style for the progress bar transition */
+        #progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white antialiased">
@@ -149,6 +153,7 @@
             },
             currentPanel: 0,
             activeEffect: null,
+            audioStarted: false,
         };
         
         // --- UI Elements ---
@@ -452,7 +457,7 @@
                 startParticleEffect(panel.visualEffect);
             }
 
-            if (synth && panel.soundEffect !== 'none') {
+            if (synth && state.audioStarted && panel.soundEffect !== 'none') {
                  if (panel.soundEffect.includes('_rumble')) {
                     const note = panel.soundEffect.split('_')[0];
                     synth.triggerAttackRelease(note, "1n");
@@ -461,8 +466,18 @@
                  }
             }
 
+            // Update Progress Bar
             const progress = ((state.currentPanel + 1) / state.webtoonData.panels.length) * 100;
             ui.progressBar.style.width = `${progress}%`;
+        }
+
+        async function startAudio() {
+            if (state.audioStarted) return;
+            if (Tone.context.state !== 'running') {
+                await Tone.start();
+                console.log('Audio context started successfully.');
+            }
+            state.audioStarted = true;
         }
 
         function generateEmbedCode() {
@@ -485,12 +500,44 @@
                 showMessage("Copied to clipboard!");
             });
 
+            // Player navigation (buttons and keyboard)
             ui.nextButton.addEventListener('click', nextPanel);
             ui.prevButton.addEventListener('click', prevPanel);
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowRight') nextPanel();
                 if (e.key === 'ArrowLeft') prevPanel();
             });
+
+            // --- Touch Swipe Navigation ---
+            let touchStartY = 0;
+            let touchEndY = 0;
+            const swipeThreshold = 50; // Minimum pixels to be considered a swipe
+
+            // Attach listener to the specific container for better targeting.
+            ui.playerContainer.addEventListener('touchstart', (e) => {
+                touchStartY = e.changedTouches[0].screenY;
+            }, { passive: true });
+
+            ui.playerContainer.addEventListener('touchend', async (e) => {
+                touchEndY = e.changedTouches[0].screenY;
+                handleSwipeGesture();
+            }, { passive: true });
+
+            async function handleSwipeGesture() {
+                await startAudio(); // Ensure audio is ready on first swipe
+                const swipeDistance = touchStartY - touchEndY;
+                const reverseSwipeDistance = touchEndY - touchStartY;
+
+                // Swipe Up (next panel)
+                if (swipeDistance > swipeThreshold) {
+                    nextPanel();
+                }
+                // Swipe Down (previous panel)
+                if (reverseSwipeDistance > swipeThreshold) {
+                    prevPanel();
+                }
+            }
+            // --- End Touch Swipe Navigation ---
 
             ui.panelList.addEventListener('click', (e) => {
                 const button = e.target.closest('button[data-action="delete"]');
@@ -551,14 +598,16 @@
             });
         }
         
-        function nextPanel(){
+        async function nextPanel(){
+            await startAudio();
             if(state.currentPanel < state.webtoonData.panels.length - 1){
                 state.currentPanel++;
                 updatePlayer();
             }
         }
         
-        function prevPanel(){
+        async function prevPanel(){
+            await startAudio();
             if(state.currentPanel > 0){
                 state.currentPanel--;
                 updatePlayer();
