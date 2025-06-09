@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Webtoon Creator & Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .draggable-ghost {
+            opacity: 0.5;
+            background: #4f46e5;
+        }
+        .panel-item:hover .drag-handle {
+            opacity: 1;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .thumbnail-container {
+            position: relative;
+            width: 3rem; /* w-12 */
+            height: 4rem; /* h-16 */
+            flex-shrink: 0;
+        }
+        .thumbnail-icon {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            background-color: rgba(0,0,0,0.6);
+            border-radius: 9999px;
+            padding: 2px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white antialiased">
+
+    <div id="app-container" class="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
+
+        <!-- Creator Panel -->
+        <div id="creator-panel" class="w-full md:w-1/3 bg-gray-800 p-6 flex flex-col space-y-4 overflow-y-auto no-scrollbar">
+            <header>
+                <h1 class="text-2xl font-bold text-indigo-400">Webtoon Creator</h1>
+                <p class="text-sm text-gray-400">Upload images or videos, add effects, and save.</p>
+            </header>
+
+            <div class="flex items-center space-x-2">
+                 <input type="text" id="webtoon-title" placeholder="Enter Webtoon Title" class="flex-grow bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                 <span id="user-id-display" class="text-xs text-gray-500 p-2 bg-gray-700 rounded-md"></span>
+            </div>
+
+            <div>
+                <label for="media-upload" class="w-full inline-block bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 transition-colors text-center">
+                    Upload Media (Images/Videos)
+                </label>
+                <input type="file" id="media-upload" multiple accept="image/*,video/mp4,video/webm" class="hidden">
+            </div>
+
+            <div id="panel-list" class="flex-grow space-y-3 pr-2 overflow-y-auto">
+                <!-- Panels will be dynamically inserted here -->
+            </div>
+
+            <div class="flex-shrink-0 space-y-2 pt-4 border-t border-gray-700">
+                 <button id="save-webtoon" class="w-full bg-green-600 font-semibold py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" /></svg>
+                    <span>Save Webtoon</span>
+                </button>
+                 <div id="embed-code-area" class="hidden">
+                    <label class="text-sm font-medium text-gray-300">Embed Code:</label>
+                    <textarea id="embed-code" readonly class="w-full bg-gray-900 text-indigo-300 p-2 rounded-lg text-xs font-mono no-scrollbar" rows="3"></textarea>
+                    <button id="copy-embed-code" class="w-full mt-1 bg-gray-600 text-xs font-semibold py-1 px-2 rounded-lg hover:bg-gray-500 transition-colors">Copy Code</button>
+                </div>
+            </div>
+             <div id="loading-indicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+            </div>
+             <div id="message-box" class="hidden fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg"></div>
+        </div>
+
+        <!-- Player Panel -->
+        <div id="player-panel" class="w-full md:w-2/3 h-full bg-gray-900 relative flex flex-col items-center justify-center">
+            <div id="player-container" class="relative w-full h-full max-w-2xl mx-auto flex items-center justify-center">
+                <img id="panel-image" src="https://placehold.co/800x1200/111827/4f46e5?text=Webtoon+Player" alt="Webtoon Panel" class="max-w-full max-h-full object-contain rounded-lg block">
+                <video id="panel-video" src="" alt="Webtoon Panel" class="max-w-full max-h-full object-contain rounded-lg hidden" autoplay muted loop playsinline></video>
+                <canvas id="effects-canvas" class="absolute top-0 left-0 w-full h-full pointer-events-none"></canvas>
+            </div>
+            <div class="absolute bottom-4 left-0 right-0 flex justify-center items-center space-x-4">
+                <button id="prev-panel" class="bg-gray-800/50 backdrop-blur-sm p-3 rounded-full hover:bg-indigo-500/80 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                 <div class="flex-grow max-w-xs">
+                    <div class="w-full bg-gray-700/50 rounded-full h-1.5">
+                        <div id="progress-bar" class="bg-indigo-500 h-1.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                <button id="next-panel" class="bg-gray-800/50 backdrop-blur-sm p-3 rounded-full hover:bg-indigo-500/80 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- App State & Config ---
+        const state = {
+            isAuthReady: false,
+            db: null,
+            auth: null,
+            userId: null,
+            webtoonId: null,
+            webtoonData: {
+                title: 'Untitled Webtoon',
+                creatorId: null,
+                panels: [],
+                createdAt: null
+            },
+            currentPanel: 0,
+            activeEffect: null,
+        };
+        
+        // --- UI Elements ---
+        const ui = {
+            mediaUpload: document.getElementById('media-upload'),
+            panelImage: document.getElementById('panel-image'),
+            panelVideo: document.getElementById('panel-video'),
+            // ... other elements
+            appContainer: document.getElementById('app-container'),
+            creatorPanel: document.getElementById('creator-panel'),
+            playerPanel: document.getElementById('player-panel'),
+            playerContainer: document.getElementById('player-container'),
+            panelList: document.getElementById('panel-list'),
+            webtoonTitle: document.getElementById('webtoon-title'),
+            saveButton: document.getElementById('save-webtoon'),
+            embedCodeArea: document.getElementById('embed-code-area'),
+            embedCode: document.getElementById('embed-code'),
+            copyEmbedCode: document.getElementById('copy-embed-code'),
+            effectsCanvas: document.getElementById('effects-canvas'),
+            prevButton: document.getElementById('prev-panel'),
+            nextButton: document.getElementById('next-panel'),
+            progressBar: document.getElementById('progress-bar'),
+            loadingIndicator: document.getElementById('loading-indicator'),
+            messageBox: document.getElementById('message-box'),
+            userIdDisplay: document.getElementById('user-id-display'),
+        };
+        
+        const canvasCtx = ui.effectsCanvas.getContext('2d');
+        let particles = [];
+        let synth;
+
+        // --- Firebase Initialization ---
+        async function initializeFirebase() {
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                const app = initializeApp(firebaseConfig);
+                state.db = getFirestore(app);
+                state.auth = getAuth(app);
+
+                onAuthStateChanged(state.auth, async (user) => {
+                    if (user) {
+                        state.userId = user.uid;
+                        ui.userIdDisplay.textContent = `User ID: ${user.uid.substring(0, 8)}...`;
+                        state.isAuthReady = true;
+                        init();
+                    } else {
+                        try {
+                             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(state.auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(state.auth);
+                            }
+                        } catch(error) {
+                             console.error("Anonymous sign-in failed:", error);
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase initialization error:", error);
+                showMessage("Could not connect to services.", true);
+            }
+        }
+
+        // --- Core App Logic ---
+        function init() {
+            if (!state.isAuthReady) return;
+            setupEventListeners();
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            try {
+                synth = new Tone.Synth().toDestination();
+            } catch(e) {
+                console.warn("Audio context could not be started. Sound effects will be disabled.");
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewMode = urlParams.get('view');
+            const webtoonToLoad = urlParams.get('id');
+
+            if (viewMode === 'player' && webtoonToLoad) {
+                state.webtoonId = webtoonToLoad;
+                enterPlayerMode();
+                loadWebtoon(webtoonToLoad);
+            } else {
+                renderPanelList();
+            }
+        }
+
+        function enterPlayerMode() {
+            ui.creatorPanel.classList.add('hidden');
+            ui.appContainer.classList.remove('md:flex-row');
+            ui.playerPanel.classList.remove('md:w-2/3');
+            ui.playerPanel.classList.add('w-full');
+            resizeCanvas();
+        }
+
+        // --- Webtoon Data Management ---
+        async function loadWebtoon(id) {
+            if (!state.db) return;
+            showLoading(true);
+            try {
+                const docRef = doc(state.db, `artifacts/${getAppId()}/public/data/webtoons`, id);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    state.webtoonData = docSnap.data();
+                    // Ensure backward compatibility for webtoons saved without 'type'
+                    state.webtoonData.panels.forEach(p => { if (!p.type) p.type = 'image'; });
+                    state.currentPanel = 0;
+                    updatePlayer();
+                    showMessage("Webtoon loaded!");
+                } else {
+                    showMessage("Webtoon not found.", true);
+                    ui.panelImage.src = 'https://placehold.co/800x1200/111827/c70000?text=Error:+Not+Found';
+                }
+            } catch (error) {
+                console.error("Error loading webtoon:", error);
+                showMessage("Failed to load webtoon.", true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function saveWebtoon() {
+            if (!state.db || !state.userId) {
+                showMessage("Not connected to services. Cannot save.", true);
+                return;
+            }
+            if (state.webtoonData.panels.length === 0) {
+                 showMessage("Add at least one panel before saving.", true);
+                 return;
+            }
+
+            showLoading(true);
+            state.webtoonData.title = ui.webtoonTitle.value || 'Untitled Webtoon';
+            state.webtoonData.creatorId = state.userId;
+            
+            try {
+                const collectionRef = collection(state.db, `artifacts/${getAppId()}/public/data/webtoons`);
+                let docRef;
+                if(state.webtoonId){
+                    docRef = doc(collectionRef, state.webtoonId);
+                    await setDoc(docRef, state.webtoonData, { merge: true });
+                } else {
+                    state.webtoonData.createdAt = serverTimestamp();
+                    docRef = await addDoc(collectionRef, state.webtoonData);
+                    state.webtoonId = docRef.id;
+                }
+                showMessage("Webtoon saved successfully!");
+                generateEmbedCode();
+            } catch(error) {
+                console.error("Error saving webtoon:", error);
+                showMessage("Failed to save webtoon.", true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function handleFileUpload(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) {
+                return;
+            }
+
+            showLoading(true);
+            let filesProcessed = 0;
+            const totalFiles = files.length;
+            
+            for (const file of files) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const panel = {
+                        id: crypto.randomUUID(),
+                        mediaData: e.target.result,
+                        type: file.type.startsWith('video') ? 'video' : 'image',
+                        visualEffect: 'none',
+                        soundEffect: 'none'
+                    };
+                    state.webtoonData.panels.push(panel);
+                    filesProcessed++;
+                    if(filesProcessed === totalFiles){
+                        renderPanelList();
+                        updatePlayer();
+                        showLoading(false);
+                    }
+                };
+                reader.onerror = () => {
+                     filesProcessed++;
+                     console.error("Error reading file:", file.name);
+                     if(filesProcessed === totalFiles){
+                        showLoading(false);
+                        showMessage('Error reading one or more files.', true);
+                     }
+                };
+                reader.readAsDataURL(file);
+            }
+            event.target.value = '';
+        }
+
+        // --- UI Rendering & Updates ---
+        function renderPanelList() {
+            ui.panelList.innerHTML = '';
+            if (state.webtoonData.panels.length === 0) {
+                ui.panelList.innerHTML = `<div class="text-center text-gray-500 p-8 border-2 border-dashed border-gray-700 rounded-lg">
+                    <p>Your panels will appear here.</p>
+                    <p class="text-sm">Upload images and videos to start.</p>
+                </div>`;
+                return;
+            }
+
+            state.webtoonData.panels.forEach((panel) => {
+                const panelEl = document.createElement('div');
+                panelEl.className = 'panel-item bg-gray-700 p-2 rounded-lg flex items-center space-x-3';
+                panelEl.setAttribute('draggable', 'true');
+                panelEl.dataset.id = panel.id;
+
+                const thumbnailSrc = panel.type === 'video' ? 'https://placehold.co/48x64/1f2937/4f46e5?text=Vid' : panel.mediaData;
+                const videoIcon = panel.type === 'video' ? `<div class="thumbnail-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 001.553.832l3-2a1 1 0 000-1.664l-3-2z" /></svg></div>` : '';
+
+                panelEl.innerHTML = `
+                    <div class="drag-handle cursor-move text-gray-500 hover:text-white transition-opacity opacity-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                    </div>
+                    <div class="thumbnail-container">
+                        <img src="${thumbnailSrc}" class="w-12 h-16 object-cover rounded-md">
+                        ${videoIcon}
+                    </div>
+                    <div class="flex-grow space-y-1">
+                        <select data-type="visualEffect" class="w-full bg-gray-600 text-xs rounded p-1 border-transparent focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="none">Visual: None</option>
+                            <option value="fadeIn">Visual: Fade In</option>
+                            <option value="rain">Visual: Rain</option>
+                            <option value="snow">Visual: Snow</option>
+                        </select>
+                        <select data-type="soundEffect" class="w-full bg-gray-600 text-xs rounded p-1 border-transparent focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <option value="none">Sound: None</option>
+                            <option value="C4">Sound: Note C4</option>
+                            <option value="E4">Sound: Note E4</option>
+                            <option value="G4">Sound: Note G4</option>
+                            <option value="A4">Sound: Note A4</option>
+                            <option value="F3_rumble">Sound: Rumble</option>
+                        </select>
+                    </div>
+                    <button data-action="delete" class="text-gray-500 hover:text-red-500 p-1 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                `;
+
+                panelEl.querySelector(`[data-type="visualEffect"]`).value = panel.visualEffect;
+                panelEl.querySelector(`[data-type="soundEffect"]`).value = panel.soundEffect;
+
+                ui.panelList.appendChild(panelEl);
+            });
+        }
+        
+        function updatePlayer() {
+            if (state.webtoonData.panels.length === 0) {
+                ui.panelImage.src = 'https://placehold.co/800x1200/111827/4f46e5?text=Webtoon+Player';
+                ui.panelImage.classList.remove('hidden');
+                ui.panelVideo.classList.add('hidden');
+                ui.progressBar.style.width = '0%';
+                stopAllEffects();
+                return;
+            }
+            
+            const panel = state.webtoonData.panels[state.currentPanel];
+            if(!panel) return;
+            
+            stopAllEffects();
+            
+            const mediaEl = panel.type === 'video' ? ui.panelVideo : ui.panelImage;
+            const otherEl = panel.type === 'video' ? ui.panelImage : ui.panelVideo;
+
+            otherEl.classList.add('hidden');
+            mediaEl.src = panel.mediaData;
+            mediaEl.classList.remove('hidden');
+
+            if (panel.visualEffect === 'fadeIn') {
+                mediaEl.style.transition = 'none';
+                mediaEl.style.opacity = 0;
+                setTimeout(() => {
+                    mediaEl.style.transition = 'opacity 0.5s ease-in-out';
+                    mediaEl.style.opacity = 1;
+                }, 50);
+            } else {
+                mediaEl.style.transition = 'none';
+                mediaEl.style.opacity = 1;
+            }
+
+            if (panel.visualEffect === 'rain' || panel.visualEffect === 'snow') {
+                startParticleEffect(panel.visualEffect);
+            }
+
+            if (synth && panel.soundEffect !== 'none') {
+                 if (panel.soundEffect.includes('_rumble')) {
+                    const note = panel.soundEffect.split('_')[0];
+                    synth.triggerAttackRelease(note, "1n");
+                 } else {
+                    synth.triggerAttackRelease(panel.soundEffect, "8n");
+                 }
+            }
+
+            const progress = ((state.currentPanel + 1) / state.webtoonData.panels.length) * 100;
+            ui.progressBar.style.width = `${progress}%`;
+        }
+
+        function generateEmbedCode() {
+            if (!state.webtoonId) return;
+            const url = `${window.location.origin}${window.location.pathname}?view=player&id=${state.webtoonId}`;
+            const code = `<iframe src="${url}" width="400" height="600" frameborder="0" allowfullscreen></iframe>`;
+            ui.embedCode.value = code;
+            ui.embedCodeArea.classList.remove('hidden');
+        }
+
+        // --- Event Handlers ---
+        function setupEventListeners() {
+            ui.mediaUpload.addEventListener('change', handleFileUpload);
+            
+            ui.webtoonTitle.addEventListener('input', () => { state.webtoonData.title = ui.webtoonTitle.value });
+            ui.saveButton.addEventListener('click', saveWebtoon);
+            ui.copyEmbedCode.addEventListener('click', () => {
+                ui.embedCode.select();
+                document.execCommand('copy');
+                showMessage("Copied to clipboard!");
+            });
+
+            ui.nextButton.addEventListener('click', nextPanel);
+            ui.prevButton.addEventListener('click', prevPanel);
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowRight') nextPanel();
+                if (e.key === 'ArrowLeft') prevPanel();
+            });
+
+            ui.panelList.addEventListener('click', (e) => {
+                const button = e.target.closest('button[data-action="delete"]');
+                if (button) {
+                    const panelEl = e.target.closest('.panel-item');
+                    const panelId = panelEl.dataset.id;
+                    state.webtoonData.panels = state.webtoonData.panels.filter(p => p.id !== panelId);
+                    renderPanelList();
+                    updatePlayer();
+                }
+            });
+
+            ui.panelList.addEventListener('change', (e) => {
+                if(e.target.tagName === 'SELECT') {
+                    const panelEl = e.target.closest('.panel-item');
+                    const panelId = panelEl.dataset.id;
+                    const panel = state.webtoonData.panels.find(p => p.id === panelId);
+                    const type = e.target.dataset.type;
+                    if (panel) {
+                        panel[type] = e.target.value;
+                        if(state.currentPanel === state.webtoonData.panels.indexOf(panel)){
+                            updatePlayer();
+                        }
+                    }
+                }
+            });
+            
+            let draggedItem = null;
+            ui.panelList.addEventListener('dragstart', (e) => {
+                draggedItem = e.target.closest('.panel-item');
+                setTimeout(() => {
+                    if (draggedItem) draggedItem.classList.add('draggable-ghost');
+                }, 0);
+            });
+            ui.panelList.addEventListener('dragend', (e) => {
+                if (draggedItem) draggedItem.classList.remove('draggable-ghost');
+                draggedItem = null;
+            });
+            ui.panelList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const overItem = e.target.closest('.panel-item');
+                if (overItem && draggedItem && overItem !== draggedItem) {
+                    const rect = overItem.getBoundingClientRect();
+                    const next = (e.clientY - rect.top - (rect.height / 2)) > 0;
+                    if (next) {
+                        ui.panelList.insertBefore(draggedItem, overItem.nextSibling);
+                    } else {
+                        ui.panelList.insertBefore(draggedItem, overItem);
+                    }
+                    
+                    const newPanelOrder = [];
+                    document.querySelectorAll('#panel-list .panel-item').forEach(el => {
+                       const foundPanel = state.webtoonData.panels.find(p => p.id === el.dataset.id);
+                       if(foundPanel) newPanelOrder.push(foundPanel);
+                    });
+                    state.webtoonData.panels = newPanelOrder;
+                }
+            });
+        }
+        
+        function nextPanel(){
+            if(state.currentPanel < state.webtoonData.panels.length - 1){
+                state.currentPanel++;
+                updatePlayer();
+            }
+        }
+        
+        function prevPanel(){
+            if(state.currentPanel > 0){
+                state.currentPanel--;
+                updatePlayer();
+            }
+        }
+
+        // --- Effects Canvas Logic ---
+        function resizeCanvas() {
+            const container = ui.playerContainer;
+            if (container) {
+                ui.effectsCanvas.width = container.clientWidth;
+                ui.effectsCanvas.height = container.clientHeight;
+            }
+        }
+
+        function startParticleEffect(type) {
+            state.activeEffect = type;
+            particles = [];
+            const amount = type === 'rain' ? 200 : 100;
+            for (let i = 0; i < amount; i++) {
+                particles.push(createParticle(type));
+            }
+            animateParticles();
+        }
+
+        function createParticle(type) {
+            const w = ui.effectsCanvas.width;
+            const h = ui.effectsCanvas.height;
+            if (type === 'rain') {
+                return {
+                    x: Math.random() * w,
+                    y: Math.random() * h - h,
+                    l: Math.random() * 2,
+                    xs: -4 + Math.random() * 4 + 2,
+                    ys: Math.random() * 10 + 10
+                };
+            } else if (type === 'snow') {
+                return {
+                    x: Math.random() * w,
+                    y: Math.random() * h,
+                    r: Math.random() * 3 + 1,
+                    d: Math.random() * 100
+                };
+            }
+        }
+
+        function drawParticles() {
+            if(!ui.effectsCanvas) return;
+            canvasCtx.clearRect(0, 0, ui.effectsCanvas.width, ui.effectsCanvas.height);
+            if (state.activeEffect === 'rain') {
+                canvasCtx.strokeStyle = 'rgba(175,190,210,0.5)';
+                canvasCtx.lineWidth = 1;
+                canvasCtx.lineCap = 'round';
+            } else if (state.activeEffect === 'snow') {
+                canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            }
+
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                canvasCtx.beginPath();
+                if (state.activeEffect === 'rain') {
+                    canvasCtx.moveTo(p.x, p.y);
+                    canvasCtx.lineTo(p.x + p.l * p.xs, p.y + p.l * p.ys);
+                } else if (state.activeEffect === 'snow') {
+                    canvasCtx.moveTo(p.x, p.y);
+                    canvasCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2, true);
+                }
+                if(state.activeEffect === 'rain') canvasCtx.stroke();
+                else if(state.activeEffect === 'snow') canvasCtx.fill();
+            }
+            updateParticles();
+        }
+
+        function updateParticles() {
+            if(!ui.effectsCanvas) return;
+            const w = ui.effectsCanvas.width;
+            const h = ui.effectsCanvas.height;
+            for (let i = 0; i < particles.length; i++) {
+                const p = particles[i];
+                if (state.activeEffect === 'rain') {
+                    p.x += p.xs;
+                    p.y += p.ys;
+                    if (p.x > w || p.y > h) {
+                        particles[i] = createParticle('rain');
+                        particles[i].y = 0;
+                    }
+                } else if (state.activeEffect === 'snow') {
+                    p.y += Math.cos(p.d) + p.r/2;
+                    p.x += Math.sin(p.d) * 2;
+                    if(p.y > h) particles[i] = createParticle('snow');
+                }
+            }
+        }
+        
+        let animationFrameId;
+        function animateParticles() {
+            if (!state.activeEffect) return;
+            drawParticles();
+            animationFrameId = requestAnimationFrame(animateParticles);
+        }
+
+        function stopAllEffects() {
+            state.activeEffect = null;
+            if(animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            if(canvasCtx && ui.effectsCanvas) {
+                canvasCtx.clearRect(0, 0, ui.effectsCanvas.width, ui.effectsCanvas.height);
+            }
+        }
+
+        // --- Utility Functions ---
+        function getAppId() {
+            return typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        }
+
+        function showLoading(isLoading) {
+            ui.loadingIndicator.classList.toggle('hidden', !isLoading);
+        }
+
+        function showMessage(msg, isError = false) {
+            ui.messageBox.textContent = msg;
+            ui.messageBox.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg ${isError ? 'bg-red-500' : 'bg-green-500'}`;
+            ui.messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                ui.messageBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        // --- Initial Load ---
+        initializeFirebase();
+
+    </script>
+</body>
+</html>
