@@ -318,7 +318,12 @@
                 generateEmbedCode();
             } catch(error) {
                 console.error("Error saving webtoon:", error);
-                showMessage("Failed to save webtoon.", true);
+                // Check for the specific oversized document error
+                if (error.code === 'invalid-argument') {
+                     showMessage("Save failed: One or more files are too large. Please use smaller, compressed files.", true);
+                } else {
+                    showMessage("Failed to save webtoon.", true);
+                }
             } finally {
                 showLoading(false);
             }
@@ -330,11 +335,22 @@
                 return;
             }
 
+            const MAX_FILE_SIZE = 700 * 1024; // 700 KB
+            const validFiles = Array.from(files).filter(file => {
+                if (file.size > MAX_FILE_SIZE) {
+                    showMessage(`File "${file.name}" is too large (max 700KB). Please compress it.`, true);
+                    return false;
+                }
+                return true;
+            });
+
+            if (validFiles.length === 0) return;
+
             showLoading(true);
             let filesProcessed = 0;
-            const totalFiles = files.length;
+            const totalFiles = validFiles.length;
             
-            for (const file of files) {
+            for (const file of validFiles) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const panel = {
