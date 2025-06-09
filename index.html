@@ -82,7 +82,7 @@
              <div id="loading-indicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
             </div>
-             <div id="message-box" class="hidden fixed bottom-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-lg"></div>
+             <div id="message-box" class="hidden fixed bottom-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg max-w-sm"></div>
         </div>
 
         <!-- Player Panel -->
@@ -109,11 +109,31 @@
 
     </div>
 
+    <!-- Error Modal -->
+    <div id="error-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 p-4">
+        <div class="p-6 bg-red-800 border-2 border-red-600 rounded-lg text-white max-w-lg w-full">
+            <h2 class="font-bold text-xl mb-2">Configuration Error</h2>
+            <p id="error-message" class="text-base"></p>
+            <div id="error-steps"></div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- Firebase Configuration ---
+        // This is your unique configuration object.
+        const firebaseConfig = {
+          apiKey: "AIzaSyD01LV0sf0wgkzEeFov6IPOYKnVEitcnTM",
+          authDomain: "n-webtoon-player.firebaseapp.com",
+          projectId: "n-webtoon-player",
+          storageBucket: "n-webtoon-player.appspot.com",
+          messagingSenderId: "1040378436513",
+          appId: "1:1040378436513:web:4320ebcef0c0a727f949e0"
+        };
+        
         // --- App State & Config ---
         const state = {
             isAuthReady: false,
@@ -136,7 +156,6 @@
             mediaUpload: document.getElementById('media-upload'),
             panelImage: document.getElementById('panel-image'),
             panelVideo: document.getElementById('panel-video'),
-            // ... other elements
             appContainer: document.getElementById('app-container'),
             creatorPanel: document.getElementById('creator-panel'),
             playerPanel: document.getElementById('player-panel'),
@@ -154,6 +173,9 @@
             loadingIndicator: document.getElementById('loading-indicator'),
             messageBox: document.getElementById('message-box'),
             userIdDisplay: document.getElementById('user-id-display'),
+            errorModal: document.getElementById('error-modal'),
+            errorMessage: document.getElementById('error-message'),
+            errorSteps: document.getElementById('error-steps'),
         };
         
         const canvasCtx = ui.effectsCanvas.getContext('2d');
@@ -162,34 +184,44 @@
 
         // --- Firebase Initialization ---
         async function initializeFirebase() {
+            if (!firebaseConfig.apiKey) {
+                showErrorModal(
+                    'Firebase is not configured.', 
+                    '<p class="text-sm">Please add your firebaseConfig object to the code.</p>'
+                );
+                console.error("Firebase configuration is missing.");
+                return;
+            }
+
             try {
-                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
                 const app = initializeApp(firebaseConfig);
                 state.db = getFirestore(app);
                 state.auth = getAuth(app);
 
-                onAuthStateChanged(state.auth, async (user) => {
-                    if (user) {
-                        state.userId = user.uid;
-                        ui.userIdDisplay.textContent = `User ID: ${user.uid.substring(0, 8)}...`;
-                        state.isAuthReady = true;
-                        init();
-                    } else {
-                        try {
-                             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                await signInWithCustomToken(state.auth, __initial_auth_token);
-                            } else {
-                                await signInAnonymously(state.auth);
-                            }
-                        } catch(error) {
-                             console.error("Anonymous sign-in failed:", error);
-                        }
-                    }
-                });
+                const userCredential = await signInAnonymously(state.auth);
+                state.userId = userCredential.user.uid;
+                ui.userIdDisplay.textContent = `User ID: ${state.userId.substring(0, 8)}...`;
+                state.isAuthReady = true;
+                init();
 
             } catch (error) {
                 console.error("Firebase initialization error:", error);
-                showMessage("Could not connect to services.", true);
+                if (error.code === 'auth/configuration-not-found') {
+                    showErrorModal(
+                        "The 'Anonymous' sign-in method is not enabled in your Firebase project.",
+                        `<p class="text-sm mt-3 font-semibold">To fix this:</p>
+                         <ol class="list-decimal list-inside text-sm mt-1 space-y-1">
+                             <li>Go to the <a href="https://console.firebase.google.com/" target="_blank" class="underline hover:text-indigo-300">Firebase Console</a>.</li>
+                             <li>Select your project (<strong>${firebaseConfig.projectId}</strong>).</li>
+                             <li>In the left menu, go to <strong>Build &gt; Authentication</strong>.</li>
+                             <li>Click the <strong>Sign-in method</strong> tab.</li>
+                             <li>Find <strong>Anonymous</strong> in the list, click the pencil icon to edit, and enable it.</li>
+                             <li>Reload this page.</li>
+                         </ol>`
+                    );
+                } else {
+                    showMessage("Could not connect to services.", true);
+                }
             }
         }
 
@@ -232,11 +264,10 @@
             if (!state.db) return;
             showLoading(true);
             try {
-                const docRef = doc(state.db, `artifacts/${getAppId()}/public/data/webtoons`, id);
+                const docRef = doc(state.db, `artifacts/${firebaseConfig.appId}/public/data/webtoons`, id);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists()) {
                     state.webtoonData = docSnap.data();
-                    // Ensure backward compatibility for webtoons saved without 'type'
                     state.webtoonData.panels.forEach(p => { if (!p.type) p.type = 'image'; });
                     state.currentPanel = 0;
                     updatePlayer();
@@ -268,7 +299,7 @@
             state.webtoonData.creatorId = state.userId;
             
             try {
-                const collectionRef = collection(state.db, `artifacts/${getAppId()}/public/data/webtoons`);
+                const collectionRef = collection(state.db, `artifacts/${firebaseConfig.appId}/public/data/webtoons`);
                 let docRef;
                 if(state.webtoonId){
                     docRef = doc(collectionRef, state.webtoonId);
@@ -639,27 +670,28 @@
                 canvasCtx.clearRect(0, 0, ui.effectsCanvas.width, ui.effectsCanvas.height);
             }
         }
-
-        // --- Utility Functions ---
-        function getAppId() {
-            return typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        }
-
+        
         function showLoading(isLoading) {
             ui.loadingIndicator.classList.toggle('hidden', !isLoading);
         }
 
         function showMessage(msg, isError = false) {
             ui.messageBox.textContent = msg;
-            ui.messageBox.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg ${isError ? 'bg-red-500' : 'bg-green-500'}`;
+            ui.messageBox.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg max-w-sm ${isError ? 'bg-red-500' : 'bg-green-500'}`;
             ui.messageBox.classList.remove('hidden');
             setTimeout(() => {
                 ui.messageBox.classList.add('hidden');
-            }, 3000);
+            }, isError ? 8000 : 3000); // Show error messages for longer
+        }
+
+        function showErrorModal(message, stepsHtml) {
+            ui.errorMessage.textContent = message;
+            ui.errorSteps.innerHTML = stepsHtml;
+            ui.errorModal.classList.remove('hidden');
         }
 
         // --- Initial Load ---
-        initializeFirebase();
+        document.addEventListener('DOMContentLoaded', initializeFirebase);
 
     </script>
 </body>
