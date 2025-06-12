@@ -166,8 +166,9 @@
             ui.myWebtoonsList.addEventListener('click', async (e) => { const target = e.target; const id = target.dataset.id; if(target.classList.contains('load-btn')) { loadWebtoon(id, false); } else if (target.classList.contains('delete-btn')) { if(confirm("Are you sure you want to delete this webtoon? This cannot be undone.")) { showLoading(true); await deleteDoc(doc(state.db, `artifacts/${firebaseConfig.appId}/public/data/webtoons`, id)); target.closest('.bg-gray-700').remove(); showLoading(false); showMessage("Webtoon deleted."); } } });
         }
         
-        async function init() {
+        function init() { 
             setupEventListeners();
+            resizeCanvas();
             window.addEventListener('resize', resizeCanvas);
             try { if(Tone) { synth = new Tone.Synth().toDestination(); const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 150, octaves: 4 }).toDestination(); roarSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.2, decay: 1.5, sustain: 0, release: 2 } }).connect(filter); } } catch(e) { console.warn("Audio context could not be started."); } 
             const urlParams = new URLSearchParams(window.location.search);
@@ -179,30 +180,32 @@
                 const app = initializeApp(firebaseConfig);
                 state.db = getFirestore(app);
                 state.auth = getAuth(app);
-                const userCredential = await signInAnonymously(state.auth);
-                state.userId = userCredential.user.uid;
-                ui.userIdDisplay.textContent = `User ID: ${state.userId.substring(0, 8)}...`;
-                state.isAuthReady = true;
-                
-                if (viewMode === 'player' && webtoonToLoad) { 
-                    const creatorPanel = document.getElementById('creator-panel');
-                    if (creatorPanel) creatorPanel.style.display = 'none';
-                    document.getElementById('player-panel').style.width = '100%';
-                    resizeCanvas();
-                    loadWebtoon(webtoonToLoad, true);
-                } else { 
-                    renderPanelList(); 
-                }
+                signInAnonymously(state.auth).then(userCredential => {
+                    state.userId = userCredential.user.uid;
+                    ui.userIdDisplay.textContent = `User ID: ${state.userId.substring(0, 8)}...`;
+                    state.isAuthReady = true;
+                    if (viewMode === 'player' && webtoonToLoad) { 
+                        const creatorPanel = document.getElementById('creator-panel');
+                        if (creatorPanel) creatorPanel.style.display = 'none';
+                        document.getElementById('player-panel').style.width = '100%';
+                        resizeCanvas();
+                        loadWebtoon(webtoonToLoad, true);
+                    } else { 
+                        renderPanelList(); 
+                    }
+                }).catch(error => {
+                    console.error("Firebase sign-in error:", error);
+                     if (error.code === 'auth/requests-from-referer-blocked') showErrorModal("API Key Restriction Active", `<p class="text-sm">This is a good sign! Your API key is secured. This preview environment is correctly blocked.</p><p class="text-sm mt-3 font-semibold">To test new changes:</p><ol class="list-decimal list-inside text-sm mt-1 space-y-1"><li>Upload this updated <strong>index.html</strong> file to your GitHub repository.</li><li>Test the changes on your live GitHub Pages URL: <a href="https://atlantixdev.github.io/webtoon-player/" target="_blank" class="underline hover:text-indigo-300">atlantixdev.github.io/webtoon-player/</a></li></ol>`);
+                    else showErrorModal("Could not connect to services.", `<p class="text-sm">${error.message}</p>`);
+                });
             } catch (error) {
                 console.error("Firebase initialization error:", error);
-                if (error.code === 'auth/configuration-not-found') showErrorModal("Anonymous sign-in not enabled.", `<p class="text-sm mt-3 font-semibold">To fix this:</p><ol class="list-decimal list-inside text-sm mt-1 space-y-1"><li>Go to the <a href="https://console.firebase.google.com/" target="_blank" class="underline hover:text-indigo-300">Firebase Console</a>.</li><li>Select your project (<strong>${firebaseConfig.projectId}</strong>).</li><li>Go to <strong>Build > Authentication > Sign-in method</strong>.</li><li>Enable the <strong>Anonymous</strong> provider.</li><li>Reload this page.</li></ol>`);
-                else if (error.code === 'auth/requests-from-referer-blocked') showErrorModal("API Key Restriction Active", `<p class="text-sm">This is a good sign! Your API key is secured. This preview environment is correctly blocked.</p><p class="text-sm mt-3 font-semibold">To test new changes:</p><ol class="list-decimal list-inside text-sm mt-1 space-y-1"><li>Upload this updated <strong>index.html</strong> file to your GitHub repository.</li><li>Test the changes on your live GitHub Pages URL: <a href="https://atlantixdev.github.io/webtoon-player/" target="_blank" class="underline hover:text-indigo-300">atlantixdev.github.io/webtoon-player/</a></li></ol>`);
-                else showErrorModal("Could not connect to services.", `<p class="text-sm">${error.message}</p>`);
+                showErrorModal("Firebase initialization failed.", `<p class="text-sm">${error.message}</p>`);
             }
         }
         
         init();
-    }
+        }
     </script>
 </body>
 </html>
