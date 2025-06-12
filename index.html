@@ -168,7 +168,7 @@
         
         async function init() { 
             setupEventListeners();
-            window.addEventListener('resize', () => {resizeCanvas()});
+            window.addEventListener('resize', () => { if(ui.effectsCanvas) ui.effectsCanvas.width = ui.playerContainer.clientWidth; ui.effectsCanvas.height = ui.playerContainer.clientHeight; });
             try { if(Tone) { synth = new Tone.Synth().toDestination(); const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 150, octaves: 4 }).toDestination(); roarSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.2, decay: 1.5, sustain: 0, release: 2 } }).connect(filter); } } catch(e) { console.warn("Audio context could not be started."); } 
             const urlParams = new URLSearchParams(window.location.search);
             const viewMode = urlParams.get('view');
