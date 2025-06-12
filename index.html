@@ -169,23 +169,7 @@
             ui.myWebtoonsList.addEventListener('click', async (e) => { const target = e.target; const id = target.dataset.id; if(target.classList.contains('load-btn')) { loadWebtoon(id, false); } else if (target.classList.contains('delete-btn')) { if(confirm("Are you sure you want to delete this webtoon? This cannot be undone.")) { showLoading(true); await deleteDoc(doc(state.db, `artifacts/${firebaseConfig.appId}/public/data/webtoons`, id)); target.closest('.bg-gray-700').remove(); showLoading(false); showMessage("Webtoon deleted."); } } });
         }
         
-        async function init() { 
-            setupEventListeners();
-            window.addEventListener('resize', resizeCanvas);
-            try { if(Tone) { synth = new Tone.Synth().toDestination(); const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 150, octaves: 4 }).toDestination(); roarSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.2, decay: 1.5, sustain: 0, release: 2 } }).connect(filter); } } catch(e) { console.warn("Audio context could not be started."); } 
-            const urlParams = new URLSearchParams(window.location.search);
-            const viewMode = urlParams.get('view');
-            const webtoonToLoad = urlParams.get('id');
-            if (viewMode === 'player' && webtoonToLoad) { 
-                const playerContainer = document.getElementById('player-container');
-                const creatorPanel = document.getElementById('creator-panel');
-                if (creatorPanel) creatorPanel.style.display = 'none';
-                if (playerContainer) playerContainer.parentElement.style.width = '100%';
-                loadWebtoon(webtoonToLoad, true);
-            } else { 
-                renderPanelList(); 
-            } 
-        }
+        function init() { if (!state.isAuthReady) return; setupEventListeners(); resizeCanvas(); window.addEventListener('resize', resizeCanvas); try { if(Tone) { synth = new Tone.Synth().toDestination(); const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 150, octaves: 4 }).toDestination(); roarSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.2, decay: 1.5, sustain: 0, release: 2 } }).connect(filter); } } catch(e) { console.warn("Audio context could not be started."); } const urlParams = new URLSearchParams(window.location.search); const viewMode = urlParams.get('view'); const webtoonToLoad = urlParams.get('id'); if (viewMode === 'player' && webtoonToLoad) { const playerContainer = document.getElementById('player-container'); const creatorPanel = document.getElementById('creator-panel'); if (creatorPanel) creatorPanel.style.display = 'none'; if (playerContainer) playerContainer.parentElement.style.width = '100%'; loadWebtoon(webtoonToLoad, true); } else { renderPanelList(); } }
         
         async function initializeFirebase() {
             if (!firebaseConfig.apiKey) return showErrorModal('Firebase is not configured.', '<p class="text-sm">Please add your firebaseConfig object to the code.</p>');
@@ -205,9 +189,9 @@
                 else showErrorModal("Could not connect to services.", `<p class="text-sm">${error.message}</p>`);
             }
         }
-
-        // --- 3. SCRIPT ENTRY POINT ---
+        
         initializeFirebase();
+    }
     </script>
 </body>
 </html>
