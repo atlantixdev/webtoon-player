@@ -127,7 +127,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        main();
+        document.addEventListener('DOMContentLoaded', main);
 
         function main() {
             const firebaseConfig = { apiKey: "AIzaSyD01LV0sf0wgkzEeFov6IPOYKnVEitcnTM", authDomain: "n-webtoon-player.firebaseapp.com", projectId: "n-webtoon-player", storageBucket: "n-webtoon-player.appspot.com", messagingSenderId: "1040378436513", appId: "1:1040378436513:web:4320ebcef0c0a727f949e0" };
@@ -172,7 +172,7 @@
             ui.exportHtmlBtn.addEventListener('click', exportAsHTML);
         }
         
-        async function init() {
+        async function init() { 
             setupEventListeners();
             window.addEventListener('resize', () => { if(ui.effectsCanvas && ui.playerContainer) { ui.effectsCanvas.width = ui.playerContainer.clientWidth; ui.effectsCanvas.height = ui.playerContainer.clientHeight; }});
             try { if(Tone) { synth = new Tone.Synth().toDestination(); const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 150, octaves: 4 }).toDestination(); roarSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.2, decay: 1.5, sustain: 0, release: 2 } }).connect(filter); const dist = new Tone.Distortion(0.6).toDestination(); fierceRoarSynth = new Tone.NoiseSynth({noise: {type: 'pink'}, envelope: {attack: 0.01, decay: 0.8, sustain: 0.1, release: 1.5}}).connect(dist); rainSynth = new Tone.NoiseSynth({noise: {type:'white'}, volume: -20, envelope: {attack: 0.5}}).toDestination(); rainSynth.volume.value = -Infinity; } } catch(e) { console.warn("Audio context could not be started."); } 
@@ -194,7 +194,7 @@
                     const creatorPanel = document.getElementById('creator-panel');
                     if (creatorPanel) creatorPanel.style.display = 'none';
                     document.getElementById('player-panel').style.width = '100%';
-                    resizeCanvas();
+                    if(ui.effectsCanvas && ui.playerContainer) { ui.effectsCanvas.width = ui.playerContainer.clientWidth; ui.effectsCanvas.height = ui.playerContainer.clientHeight; }
                     loadWebtoon(webtoonToLoad, true);
                 } else { 
                     renderPanelList(); 
