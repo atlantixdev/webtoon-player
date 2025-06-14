@@ -1,29 +1,26 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webtoon Uploader Test</title>
+    <title>Webtoon Uploader - Simplified Test</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .thumbnail-container { position: relative; width: 4rem; height: 5rem; flex-shrink: 0; }
-        .thumbnail-icon { position: absolute; bottom: 2px; right: 2px; background-color: rgba(0,0,0,0.6); border-radius: 9999px; padding: 2px; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-8">
     <div class="max-w-xl mx-auto">
         <header class="text-center">
             <h1 class="text-2xl font-bold text-indigo-400">Uploader Test</h1>
-            <p class="text-sm text-gray-400 mt-1">Please try uploading an image or video.</p>
+            <p class="text-sm text-gray-400 mt-1">Please try uploading a single image.</p>
         </header>
         <div class="mt-6">
             <label for="media-upload" class="w-full inline-block bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 transition-colors text-center">
-                Upload Media (Images/Videos)
+                Upload Image
             </label>
-            <input type="file" id="media-upload" multiple accept="image/*,video/mp4,video/webm" class="hidden">
+            <input type="file" id="media-upload" accept="image/*" class="hidden">
         </div>
         <div id="panel-list" class="mt-6 flex-grow space-y-3 pr-2 overflow-y-auto">
              <div id="placeholder-message" class="text-center text-gray-500 p-8 border-2 border-dashed border-gray-700 rounded-lg">
@@ -40,86 +37,50 @@
                 placeholder: document.getElementById('placeholder-message'),
             };
 
-            let panelCounter = 0;
-
-            function createPanelElement(panel) {
-                const el = document.createElement('div');
-                el.className = 'bg-gray-700 p-2 rounded-lg flex items-center space-x-3';
-                
-                const thumbContainer = document.createElement('div');
-                thumbContainer.className = 'thumbnail-container';
-
-                const thumbImg = document.createElement('img');
-                thumbImg.className = 'w-16 h-20 object-cover rounded-md';
-                thumbImg.src = panel.thumbnailData || (panel.type === 'video' ? 'https://placehold.co/48x64/1f2937/4f46e5?text=Vid' : panel.mediaData);
-                
-                thumbContainer.appendChild(thumbImg);
-                
-                if (panel.type === 'video') {
-                    const videoIcon = document.createElement('div');
-                    videoIcon.className = 'thumbnail-icon';
-                    videoIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 001.553.832l3-2a1 1 0 000-1.664l-3-2z" /></svg>`;
-                    thumbContainer.appendChild(videoIcon);
+            function handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) {
+                    return;
                 }
 
-                el.appendChild(thumbContainer);
-
-                const fileNameEl = document.createElement('span');
-                fileNameEl.className = 'text-sm text-gray-300';
-                fileNameEl.textContent = `Panel #${panel.index}`;
-                el.appendChild(fileNameEl);
-                
-                return el;
-            }
-
-            function handleFileUpload(event) {
-                const files = event.target.files;
-                if (!files || files.length === 0) return;
-                
                 if (ui.placeholder) {
                     ui.placeholder.style.display = 'none';
                 }
 
-                Array.from(files).forEach(file => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const panelData = {
-                            id: crypto.randomUUID(),
-                            mediaData: e.target.result,
-                            type: file.type.startsWith('video') ? 'video' : 'image',
-                            thumbnailData: null,
-                            index: ++panelCounter,
-                        };
+                const reader = new FileReader();
 
-                        if (panelData.type === 'video') {
-                            const video = document.createElement('video');
-                            video.src = e.target.result;
-                            video.onloadeddata = () => {
-                                const canvas = document.createElement('canvas');
-                                canvas.width = video.videoWidth;
-                                canvas.height = video.videoHeight;
-                                canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-                                panelData.thumbnailData = canvas.toDataURL('image/jpeg');
-                                const panelEl = createPanelElement(panelData);
-                                ui.panelList.appendChild(panelEl);
-                            };
-                            video.onerror = (err) => console.error("Video error:", err);
-                        } else {
-                            const panelEl = createPanelElement(panelData);
-                            ui.panelList.appendChild(panelEl);
-                        }
-                    };
-                    reader.onerror = (err) => console.error("File reader error:", err);
-                    reader.readAsDataURL(file);
-                });
-                
+                reader.onload = function(e) {
+                    const panelEl = document.createElement('div');
+                    panelEl.className = 'bg-gray-700 p-2 rounded-lg flex items-center space-x-3';
+                    
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'w-16 h-20 object-cover rounded-md';
+
+                    panelEl.appendChild(img);
+
+                    const text = document.createElement('span');
+                    text.textContent = 'Upload Successful!';
+                    text.className = 'text-sm text-green-400';
+                    panelEl.appendChild(text);
+
+                    ui.panelList.appendChild(panelEl);
+                };
+
+                reader.onerror = function() {
+                    console.error("File could not be read.");
+                    alert("Error reading file.");
+                };
+
+                reader.readAsDataURL(file);
+
                 event.target.value = '';
             }
 
             ui.mediaUpload.addEventListener('change', handleFileUpload);
         }
 
-        main();
+        document.addEventListener('DOMContentLoaded', main);
     </script>
 </body>
 </html>
