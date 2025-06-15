@@ -88,12 +88,11 @@
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'text-gray-500 hover:text-red-500 p-1';
                 deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>`;
+                
+                // --- DELETE BUTTON LOGIC ---
                 deleteBtn.addEventListener('click', () => {
                     panels = panels.filter(p => p.id !== panel.id);
-                    el.remove();
-                    if (panels.length === 0 && ui.placeholder) {
-                        ui.placeholder.style.display = 'block';
-                    }
+                    renderPanelList();
                 });
                 el.appendChild(deleteBtn);
 
@@ -102,17 +101,18 @@
 
             function renderPanelList() {
                 ui.panelList.innerHTML = '';
-                if (panels.length === 0 && ui.placeholder) {
-                    ui.panelList.appendChild(ui.placeholder);
-                    ui.placeholder.style.display = 'block';
-                } else if(ui.placeholder) {
-                     ui.placeholder.style.display = 'none';
+                if (panels.length === 0) {
+                    const placeholder = document.createElement('div');
+                    placeholder.id = 'placeholder-message';
+                    placeholder.className = 'text-center text-gray-500 p-8 border-2 border-dashed border-gray-700 rounded-lg';
+                    placeholder.innerHTML = `<p>Uploaded panels will appear here.</p>`;
+                    ui.panelList.appendChild(placeholder);
+                } else {
+                    panels.forEach(panel => {
+                        const panelEl = createPanelElement(panel);
+                        ui.panelList.appendChild(panelEl);
+                    });
                 }
-                
-                panels.forEach(panel => {
-                    const panelEl = createPanelElement(panel);
-                    ui.panelList.appendChild(panelEl);
-                });
             }
 
             async function handleFileUpload(event) {
@@ -160,6 +160,7 @@
                 }
             }
             
+            // --- DRAG AND DROP LOGIC ---
             let draggedItem = null;
             ui.panelList.addEventListener('dragstart', (e) => { 
                 draggedItem = e.target.closest('.panel-item');
@@ -172,6 +173,11 @@
             ui.panelList.addEventListener('dragend', (e) => {
                 if(draggedItem) {
                     draggedItem.classList.remove('draggable-ghost');
+                    const newPanelOrderIds = Array.from(ui.panelList.children)
+                        .map(el => el.dataset ? el.dataset.id : null)
+                        .filter(id => id);
+
+                    panels.sort((a, b) => newPanelOrderIds.indexOf(a.id) - newPanelOrderIds.indexOf(b.id));
                     draggedItem = null;
                 }
             });
@@ -186,8 +192,6 @@
                     } else {
                         ui.panelList.insertBefore(draggedItem, overItem);
                     }
-                    const newPanelOrderIds = Array.from(ui.panelList.children).map(el => el.dataset.id);
-                    panels.sort((a, b) => newPanelOrderIds.indexOf(a.id) - newPanelOrderIds.indexOf(b.id));
                 }
             });
 
