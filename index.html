@@ -173,17 +173,12 @@
         }
         
         async function init() { 
+            setupEventListeners();
+            window.addEventListener('resize', () => { if(ui.effectsCanvas && ui.playerContainer) { ui.effectsCanvas.width = ui.playerContainer.clientWidth; ui.effectsCanvas.height = ui.playerContainer.clientHeight; }});
+            try { if(Tone) { synth = new Tone.Synth().toDestination(); const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 150, octaves: 4 }).toDestination(); roarSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.2, decay: 1.5, sustain: 0, release: 2 } }).connect(filter); const dist = new Tone.Distortion(0.6).toDestination(); fierceRoarSynth = new Tone.NoiseSynth({noise: {type: 'pink'}, envelope: {attack: 0.01, decay: 0.8, sustain: 0.1, release: 1.5}}).connect(dist); rainSynth = new Tone.NoiseSynth({noise: {type:'white'}, volume: -20, envelope: {attack: 0.5}}).toDestination(); rainSynth.volume.value = -Infinity; } } catch(e) { console.warn("Audio context could not be started."); } 
             const urlParams = new URLSearchParams(window.location.search);
             const viewMode = urlParams.get('view');
             const webtoonToLoad = urlParams.get('id');
-            
-            if (viewMode === 'player' && webtoonToLoad) { 
-                const creatorPanel = document.getElementById('creator-panel');
-                if (creatorPanel) creatorPanel.style.display = 'none';
-                document.getElementById('player-panel').style.width = '100%';
-            }
-
-            try { if(Tone) { synth = new Tone.Synth().toDestination(); const filter = new Tone.AutoFilter({ frequency: "8n", baseFrequency: 150, octaves: 4 }).toDestination(); roarSynth = new Tone.NoiseSynth({ noise: { type: 'brown' }, envelope: { attack: 0.2, decay: 1.5, sustain: 0, release: 2 } }).connect(filter); const dist = new Tone.Distortion(0.6).toDestination(); fierceRoarSynth = new Tone.NoiseSynth({noise: {type: 'pink'}, envelope: {attack: 0.01, decay: 0.8, sustain: 0.1, release: 1.5}}).connect(dist); rainSynth = new Tone.NoiseSynth({noise: {type:'white'}, volume: -20, envelope: {attack: 0.5}}).toDestination(); rainSynth.volume.value = -Infinity; } } catch(e) { console.warn("Audio context could not be started."); } 
             
             if (!firebaseConfig.apiKey) return showErrorModal('Firebase is not configured.', '<p class="text-sm">Please add your firebaseConfig object to the code.</p>');
             try {
@@ -195,9 +190,11 @@
                 ui.userIdDisplay.textContent = `User ID: ${state.userId.substring(0, 8)}...`;
                 state.isAuthReady = true;
                 
-                setupEventListeners();
-                
                 if (viewMode === 'player' && webtoonToLoad) { 
+                    const creatorPanel = document.getElementById('creator-panel');
+                    if (creatorPanel) creatorPanel.style.display = 'none';
+                    document.getElementById('player-panel').style.width = '100%';
+                    if(ui.effectsCanvas && ui.playerContainer) { ui.effectsCanvas.width = ui.playerContainer.clientWidth; ui.effectsCanvas.height = ui.playerContainer.clientHeight; }
                     loadWebtoon(webtoonToLoad, true);
                 } else { 
                     renderPanelList(); 
@@ -209,9 +206,7 @@
                 else showErrorModal("Could not connect to services.", `<p class="text-sm">${error.message}</p>`);
             }
         }
-        
-        init();
-        }
+    }
     </script>
 </body>
 </html>
