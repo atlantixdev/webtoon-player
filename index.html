@@ -332,9 +332,9 @@
                 let draggedEl = { el: null, type: null, balloonId: null }; ui.balloonModalPreview.addEventListener('mousedown', e => { const target = e.target.closest('.draggable-balloon, .tail-handle'); if(target) { draggedEl.el = target; draggedEl.balloonId = target.dataset.balloonId; draggedEl.type = target.classList.contains('draggable-balloon') ? 'balloon' : 'tail'; if(draggedEl.type === 'tail') draggedEl.handleType = target.dataset.handleType; target.style.cursor = 'grabbing'; document.addEventListener('mousemove', onDragMove); document.addEventListener('mouseup', onDragEnd); } }); function onDragMove(e) { if (!draggedEl.el) return; const rect = ui.balloonModalPreview.getBoundingClientRect(); let xPercent = ((e.clientX - rect.left) / rect.width) * 100; let yPercent = ((e.clientY - rect.top) / rect.height) * 100; xPercent = Math.max(0, Math.min(xPercent, 100)); yPercent = Math.max(0, Math.min(yPercent, 100)); draggedEl.el.style.left = `${xPercent}%`; draggedEl.el.style.top = `${yPercent}%`; const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); const balloon = panel.balloons.find(b => b.id === draggedEl.balloonId); if(!balloon) return; if(draggedEl.type === 'balloon') { balloon.position = {x: xPercent, y: yPercent}; } else { balloon.tail[draggedEl.handleType] = {x: xPercent, y: yPercent}; } renderBalloonsInModal(); } function onDragEnd() { if (!draggedEl.el) return; draggedEl.el.style.cursor = 'grab'; draggedEl = { el: null, type: null, balloonId: null }; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); }
             }
             
-            async function init() {
+            async function init() { 
                 setupEventListeners();
-                
+
                 if (!firebaseConfig.apiKey) return showErrorModal('Firebase is not configured.', '<p class="text-sm">Please add your firebaseConfig object to the code.</p>');
                 try {
                     const app = initializeApp(firebaseConfig);
