@@ -3,53 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webtoon Uploader - Panel Management Test</title>
+    <title>Interactive Webtoon Creator & Player</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bangers&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .thumbnail-container { position: relative; width: 4rem; height: 5rem; flex-shrink: 0; }
-        .thumbnail-icon { position: absolute; bottom: 2px; right: 2px; background-color: rgba(0,0,0,0.6); border-radius: 9999px; padding: 2px; }
+        .comic-font { font-family: 'Bangers', cursive; }
         .draggable-ghost { opacity: 0.5; background: #4f46e5; }
-        .drag-handle { cursor: move; }
+        .panel-item:hover .drag-handle { opacity: 1; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .thumbnail-container { position: relative; width: 3rem; height: 4rem; flex-shrink: 0; }
+        .thumbnail-icon { position: absolute; bottom: 2px; right: 2px; background-color: rgba(0,0,0,0.6); border-radius: 9999px; padding: 2px; }
+        #progress-bar { transition: width 0.3s ease-in-out; }
+        .word-balloon { position: absolute; padding: 12px 18px; background: white; color: black; border-radius: 20px; max-width: 40%; word-wrap: break-word; border: 3px solid black; line-height: 1.3; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4)); transform: translate(-50%, -50%); z-index: 10; pointer-events: none; }
+        .word-balloon.thought { border-style: dashed; border-radius: 50%; }
+        .word-balloon.shout { border-radius: 0; clip-path: polygon(0% 15%, 15% 15%, 15% 0%, 30% 15%, 45% 0%, 60% 15%, 75% 0%, 85% 15%, 100% 15%, 100% 85%, 85% 85%, 75% 100%, 60% 85%, 45% 100%, 30% 85%, 15% 100%, 15% 85%, 0% 85%); }
+        .balloon-tail-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9; }
+        .balloon-tail { fill: white; stroke: black; stroke-width: 0.75; }
+        .balloon-edit-modal-preview { position: relative; width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center; }
+        .draggable-balloon, .tail-handle { position: absolute; cursor: grab; z-index: 11; pointer-events: auto; }
+        .draggable-balloon:active, .tail-handle:active { cursor: grabbing; }
+        .tail-handle { width: 12px; height: 12px; background-color: #4f46e5; border-radius: 50%; border: 2px solid white; transform: translate(-50%, -50%); }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen p-8">
-    <div class="max-w-xl mx-auto">
-        <header class="text-center">
-            <h1 class="text-2xl font-bold text-indigo-400">Panel Management Test</h1>
-            <p class="text-sm text-gray-400 mt-1">Upload files, then try deleting and reordering them.</p>
-        </header>
-        <div class="mt-6">
-            <label for="media-upload" class="w-full inline-block bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 transition-colors text-center">
-                Upload Media
-            </label>
-            <input type="file" id="media-upload" multiple accept="image/*,video/mp4,video/webm" class="hidden">
-        </div>
-        <div id="panel-list" class="mt-6 flex-grow space-y-3 pr-2 overflow-y-auto">
-             <div id="placeholder-message" class="text-center text-gray-500 p-8 border-2 border-dashed border-gray-700 rounded-lg">
-                <p>Uploaded panels will appear here.</p>
+<body class="bg-gray-900 text-white antialiased">
+
+    <div id="app-container" class="flex flex-col md:flex-row h-screen w-screen overflow-hidden">
+        <div id="creator-panel" class="w-full md:w-1/3 bg-gray-800 p-6 flex flex-col space-y-4 overflow-y-auto no-scrollbar">
+            <header class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-indigo-400">Webtoon Creator</h1>
+            </header>
+            <div class="flex items-center space-x-2">
+                 <input type="text" id="webtoon-title" placeholder="Enter Webtoon Title" class="flex-grow bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+                <label for="media-upload" class="w-full inline-block bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 transition-colors text-center">
+                    Upload Media (Images/Videos)
+                </label>
+                <input type="file" id="media-upload" multiple accept="image/*,video/mp4,video/webm" class="hidden">
+            </div>
+            <div id="panel-list" class="flex-grow space-y-3 pr-2 overflow-y-auto">
+                <div id="placeholder-message" class="text-center text-gray-500 p-8 border-2 border-dashed border-gray-700 rounded-lg">
+                   <p>Uploaded panels will appear here.</p>
+               </div>
             </div>
         </div>
-        <div id="loading-indicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+        <div id="player-panel" class="w-full md:w-2/3 h-full bg-gray-900 relative flex flex-col items-center justify-center">
+            <div id="player-container" class="relative w-full h-full max-w-2xl mx-auto flex items-center justify-center">
+                <img id="panel-image" src="https://placehold.co/800x1200/111827/4f46e5?text=Webtoon+Player" alt="Webtoon Panel" class="max-w-full max-h-full object-contain rounded-lg block">
+                <video id="panel-video" src="" alt="Webtoon Panel" class="max-w-full max-h-full object-contain rounded-lg hidden" autoplay muted loop playsinline></video>
+                <div id="balloons-container" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></div>
+            </div>
+            <div class="absolute bottom-4 left-0 right-0 flex justify-center items-center space-x-4">
+                <button id="prev-panel" class="bg-gray-800/50 backdrop-blur-sm p-3 rounded-full hover:bg-indigo-500/80 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                 <div class="flex-grow max-w-xs">
+                    <div class="w-full bg-gray-700/50 rounded-full h-1.5">
+                        <div id="progress-bar" class="bg-indigo-500 h-1.5 rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                <button id="next-panel" class="bg-gray-800/50 backdrop-blur-sm p-3 rounded-full hover:bg-indigo-500/80 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
         </div>
     </div>
+    <div id="balloon-edit-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-90 flex items-center justify-center z-50 p-4">
+        <div class="w-full h-full flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+            <div class="md:w-2/3 h-1/2 md:h-full bg-gray-800 rounded-lg relative overflow-hidden balloon-edit-modal-preview"></div>
+            <div class="md:w-1/3 h-1/2 md:h-full bg-gray-800 rounded-lg p-4 flex flex-col">
+                <h2 class="text-xl font-bold text-indigo-400 mb-4">Edit Balloons</h2>
+                <div id="balloon-modal-controls" class="flex-grow overflow-y-auto no-scrollbar space-y-3"></div>
+                <div class="mt-4 flex-shrink-0">
+                    <button id="add-balloon-in-modal" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg mb-2">+ Add New Balloon</button>
+                    <button id="close-balloon-modal" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+     <div id="loading-indicator" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+    </div>
 
-    <script type="module">
+    <script>
         document.addEventListener('DOMContentLoaded', main);
 
         function main() {
-            const ui = {
-                mediaUpload: document.getElementById('media-upload'),
-                panelList: document.getElementById('panel-list'),
-                placeholder: document.getElementById('placeholder-message'),
-                loadingIndicator: document.getElementById('loading-indicator'),
-            };
-
-            let panels = [];
+            const state = { webtoonData: { title: 'Untitled Webtoon', panels: [] }, currentPanel: 0, currentBalloonIndex: -1, activeEditPanelId: null };
+            const ui = { mediaUpload: document.getElementById('media-upload'), panelList: document.getElementById('panel-list'), placeholder: document.getElementById('placeholder-message'), loadingIndicator: document.getElementById('loading-indicator'), panelImage: document.getElementById('panel-image'), panelVideo: document.getElementById('panel-video'), balloonsContainer: document.getElementById('balloons-container'), prevButton: document.getElementById('prev-panel'), nextButton: document.getElementById('next-panel'), progressBar: document.getElementById('progress-bar'), balloonEditModal: document.getElementById('balloon-edit-modal'), balloonModalPreview: document.querySelector('.balloon-edit-modal-preview'), balloonModalControls: document.getElementById('balloon-modal-controls'), closeBalloonModal: document.getElementById('close-balloon-modal'), addBalloonInModal: document.getElementById('add-balloon-in-modal') };
             let panelCounter = 0;
-
+            
             function createPanelElement(panel) {
                 const el = document.createElement('div');
                 el.className = 'panel-item bg-gray-700 p-2 rounded-lg flex items-center space-x-3';
@@ -77,17 +125,29 @@
                 el.appendChild(thumbContainer);
 
                 const infoContainer = document.createElement('div');
-                infoContainer.className = 'flex-grow';
-                const fileNameEl = document.createElement('span');
-                fileNameEl.className = 'text-sm text-gray-300';
-                fileNameEl.textContent = `Panel #${panel.index}`;
-                infoContainer.appendChild(fileNameEl);
+                infoContainer.className = 'flex-grow flex flex-col space-y-2';
+                const panelTitle = document.createElement('span');
+                panelTitle.className = 'text-sm text-gray-300';
+                panelTitle.textContent = `Panel #${panel.index}`;
+                infoContainer.appendChild(panelTitle);
+
+                const editBtn = document.createElement('button');
+                editBtn.className = 'text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-1 px-2 rounded-md self-start';
+                editBtn.textContent = 'Edit Balloons';
+                editBtn.addEventListener('click', () => openBalloonEditor(panel.id));
+                infoContainer.appendChild(editBtn);
+                
                 el.appendChild(infoContainer);
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'text-gray-500 hover:text-red-500 p-1';
                 deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>`;
-                deleteBtn.dataset.action = 'delete';
+                
+                deleteBtn.addEventListener('click', () => {
+                    state.webtoonData.panels = state.webtoonData.panels.filter(p => p.id !== panel.id);
+                    renderPanelList();
+                    updatePlayer();
+                });
                 el.appendChild(deleteBtn);
 
                 return el;
@@ -95,27 +155,47 @@
 
             function renderPanelList() {
                 ui.panelList.innerHTML = '';
-                if (panels.length === 0) {
-                     ui.panelList.appendChild(ui.placeholder);
+                if (state.webtoonData.panels.length === 0) {
+                    ui.panelList.appendChild(ui.placeholder);
                 } else {
-                    panels.forEach(panel => {
+                    state.webtoonData.panels.forEach(panel => {
                         const panelEl = createPanelElement(panel);
                         ui.panelList.appendChild(panelEl);
                     });
                 }
             }
 
-            async function processFile(file) {
-                return new Promise((resolve, reject) => {
+            async function handleFileUpload(event) {
+                const files = Array.from(event.target.files);
+                if (!files || files.length === 0) return;
+                ui.loadingIndicator.classList.remove('hidden');
+
+                for (const file of files) {
+                    try {
+                        const panelData = await processFile(file);
+                        state.webtoonData.panels.push(panelData);
+                    } catch (error) {
+                        console.error("Error processing file:", error);
+                    }
+                }
+                
+                renderPanelList();
+                updatePlayer();
+                ui.loadingIndicator.classList.add('hidden');
+                event.target.value = '';
+            }
+            
+            function processFile(file) {
+                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (e) => {
-                        const panelData = { id: crypto.randomUUID(), mediaData: e.target.result, type: file.type.startsWith('video') ? 'video' : 'image', thumbnailData: null, index: ++panelCounter };
+                        const panelData = { id: crypto.randomUUID(), mediaData: e.target.result, type: file.type.startsWith('video') ? 'video' : 'image', thumbnailData: null, index: ++panelCounter, balloons: [] };
                         if (panelData.type === 'video') {
                             const video = document.createElement('video');
                             video.preload = 'metadata';
                             video.muted = true;
                             video.playsInline = true;
-                            video.addEventListener('loadeddata', () => { video.currentTime = 1; });
+                            video.addEventListener('loadeddata', () => video.currentTime = 1);
                             video.addEventListener('seeked', () => { const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height); panelData.thumbnailData = canvas.toDataURL('image/jpeg'); resolve(panelData); });
                             video.addEventListener('error', (err) => reject(new Error('Video file could not be loaded.')));
                             video.src = e.target.result;
@@ -128,78 +208,90 @@
                 });
             }
 
-            async function handleFileUpload(event) {
-                const files = Array.from(event.target.files);
-                if (!files || files.length === 0) return;
+            function updateBalloons() {
+                const panel = state.webtoonData.panels[state.currentPanel];
+                ui.balloonsContainer.innerHTML = '';
+                if (!panel || !panel.balloons) return;
 
-                ui.loadingIndicator.classList.remove('hidden');
-                ui.placeholder.style.display = 'none';
+                panel.balloons.slice(0, state.currentBalloonIndex + 1).forEach(balloon => {
+                    const balloonEl = document.createElement('div');
+                    balloonEl.className = `word-balloon comic-font ${balloon.style}`;
+                    balloonEl.textContent = balloon.text;
+                    balloonEl.style.fontSize = `${balloon.fontSize || 1.2}rem`;
+                    balloonEl.style.left = `${balloon.position.x}%`;
+                    balloonEl.style.top = `${balloon.position.y}%`;
+                    ui.balloonsContainer.appendChild(balloonEl);
 
-                for (const file of files) {
-                    try {
-                        const panelData = await processFile(file);
-                        panels.push(panelData);
-                        const panelEl = createPanelElement(panelData);
-                        ui.panelList.appendChild(panelEl);
-                    } catch (error) {
-                        console.error("Error processing file:", error);
+                    if (balloon.style === 'speech' && balloon.tail) {
+                        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                        svg.setAttribute('class', 'balloon-tail-svg');
+                        svg.setAttribute('viewBox', '0 0 100 100');
+                        svg.setAttribute('preserveAspectRatio', 'none');
+                        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                        const p = balloon.position;
+                        const t = balloon.tail.tip;
+                        const b1 = balloon.tail.base;
+                        const angle = Math.atan2(b1.y - p.y, b1.x - p.x);
+                        const width = 3;
+                        path.setAttribute('d', `M ${b1.x - width * Math.sin(angle)},${b1.y + width * Math.cos(angle)} L ${t.x},${t.y} L ${b1.x + width * Math.sin(angle)},${b1.y - width * Math.cos(angle)} Z`);
+                        path.setAttribute('class', 'balloon-tail');
+                        svg.appendChild(path);
+                        ui.balloonsContainer.appendChild(svg);
                     }
+                });
+            }
+
+            function updatePlayer(isNewPanel = true) {
+                if (state.webtoonData.panels.length === 0) {
+                    ui.panelImage.src = 'https://placehold.co/800x1200/111827/4f46e5?text=Webtoon+Player';
+                    ui.panelImage.classList.remove('hidden');
+                    ui.panelVideo.classList.add('hidden');
+                    ui.progressBar.style.width = '0%';
+                    return;
+                }
+                const panel = state.webtoonData.panels[state.currentPanel];
+                if (!panel) return;
+
+                if(isNewPanel) {
+                    const mediaEl = panel.type === 'video' ? ui.panelVideo : ui.panelImage;
+                    const otherEl = panel.type === 'video' ? ui.panelImage : ui.panelVideo;
+                    otherEl.classList.add('hidden');
+                    mediaEl.src = panel.mediaData;
+                    mediaEl.classList.remove('hidden');
                 }
                 
-                ui.loadingIndicator.classList.add('hidden');
-                event.target.value = '';
+                updateBalloons();
+
+                const progress = ((state.currentPanel + 1) / state.webtoonData.panels.length) * 100;
+                ui.progressBar.style.width = `${progress}%`;
             }
             
-            ui.panelList.addEventListener('click', (e) => {
-                const deleteBtn = e.target.closest('button[data-action="delete"]');
-                if(deleteBtn) {
-                    const panelEl = deleteBtn.closest('.panel-item');
-                    const panelId = panelEl.dataset.id;
-                    panels = panels.filter(p => p.id !== panelId);
-                    panelEl.remove();
-                    if (panels.length === 0) {
-                        ui.placeholder.style.display = 'block';
-                    }
-                }
-            });
+            async function nextPanel() { const panel = state.webtoonData.panels[state.currentPanel]; if (!panel) return; const maxSteps = (panel.balloons?.length || 0); if (state.currentBalloonIndex < maxSteps -1) { state.currentBalloonIndex++; updatePlayer(false); } else { if(state.currentPanel < state.webtoonData.panels.length - 1){ state.currentPanel++; state.currentBalloonIndex = -1; updatePlayer(true); } } }
+            async function prevPanel() { if(state.currentBalloonIndex > 0) { state.currentBalloonIndex--; updatePlayer(false); } else { if (state.currentPanel > 0) { state.currentPanel--; const prevPanel = state.webtoonData.panels[state.currentPanel]; state.currentBalloonIndex = (prevPanel.balloons?.length || 0) -1; updatePlayer(true); } } }
             
-            let draggedItem = null;
-            ui.panelList.addEventListener('dragstart', (e) => { 
-                draggedItem = e.target.closest('.panel-item');
-                if(draggedItem){
-                    setTimeout(() => {
-                        if(draggedItem) draggedItem.classList.add('draggable-ghost');
-                    }, 0);
-                }
-            });
-            ui.panelList.addEventListener('dragend', () => {
-                if(draggedItem) {
-                    draggedItem.classList.remove('draggable-ghost');
-                    const newPanelOrderIds = Array.from(ui.panelList.children)
-                        .map(el => el.dataset ? el.dataset.id : null)
-                        .filter(id => id);
-                    panels.sort((a, b) => newPanelOrderIds.indexOf(a.id) - newPanelOrderIds.indexOf(b.id));
-                    draggedItem = null;
-                }
-            });
-            ui.panelList.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                const overItem = e.target.closest('.panel-item');
-                if (overItem && draggedItem && overItem !== draggedItem) {
-                    const rect = overItem.getBoundingClientRect();
-                    const next = (e.clientY - rect.top - (rect.height / 2)) > 0;
-                    if (next) {
-                        ui.panelList.insertBefore(draggedItem, overItem.nextSibling);
-                    } else {
-                        ui.panelList.insertBefore(draggedItem, overItem);
-                    }
-                }
-            });
-
-            ui.mediaUpload.addEventListener('change', handleFileUpload);
-            renderPanelList();
+            function openBalloonEditor(panelId) { state.activeEditPanelId = panelId; const panel = state.webtoonData.panels.find(p => p.id === panelId); if(!panel) return; if(panel.type === 'image') { ui.balloonModalPreview.style.backgroundImage = `url(${panel.mediaData})`; } else if (panel.thumbnailData) { ui.balloonModalPreview.style.backgroundImage = `url(${panel.thumbnailData})`; } else { ui.balloonModalPreview.style.backgroundImage = ''; ui.balloonModalPreview.style.backgroundColor = '#1f2937'; } renderBalloonControlsInModal(); renderBalloonsInModal(); ui.balloonEditModal.classList.remove('hidden'); }
+            function renderBalloonControlsInModal() { const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); if(!panel) return; ui.balloonModalControls.innerHTML = ''; (panel.balloons || []).forEach(balloon => { const controlEl = document.createElement('div'); controlEl.className = 'bg-gray-900 p-3 rounded-md space-y-2'; controlEl.dataset.balloonId = balloon.id; controlEl.innerHTML = `<textarea data-control="text" class="w-full bg-gray-700 text-sm rounded p-1" rows="2" placeholder="Balloon text...">${balloon.text}</textarea><div class="flex space-x-2"><select data-control="style" class="flex-grow bg-gray-700 text-xs rounded p-1"><option value="speech">Speech</option><option value="thought">Thought</option><option value="shout">Shout</option></select><button data-action="remove-balloon" class="text-gray-500 hover:text-red-500 p-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div><div><label class="text-xs text-gray-400">Font Size</label><input data-control="fontSize" type="range" min="0.8" max="2.5" step="0.1" value="${balloon.fontSize || 1.2}" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"></div>`; controlEl.querySelector('select').value = balloon.style; ui.balloonModalControls.appendChild(controlEl); }); }
+            function renderBalloonsInModal() { const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); if(!panel) return; ui.balloonModalPreview.innerHTML = ''; (panel.balloons || []).forEach(b => { const d = document.createElement('div'); d.className=`word-balloon comic-font draggable-balloon ${b.style}`; d.textContent=b.text; d.dataset.balloonId = b.id; d.style.fontSize = `${b.fontSize || 1.2}rem`; d.style.left=`${b.position.x}%`; d.style.top=`${b.position.y}%`; ui.balloonModalPreview.appendChild(d); if (b.style === 'speech' && b.tail) { const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute('class', 'balloon-tail-svg'); svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('preserveAspectRatio', 'none'); const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); const p = b.position; const t = b.tail.tip; const b1 = b.tail.base; const angle = Math.atan2(b1.y - p.y, b1.x - p.x); const width = 3; path.setAttribute('d', `M ${b1.x - width * Math.sin(angle)},${b1.y + width * Math.cos(angle)} L ${t.x},${t.y} L ${b1.x + width * Math.sin(angle)},${b1.y - width * Math.cos(angle)} Z`); path.setAttribute('class', 'balloon-tail'); svg.appendChild(path); ui.balloonModalPreview.appendChild(svg); const tipHandle = document.createElement('div'); tipHandle.className = 'tail-handle'; tipHandle.dataset.handleType = 'tip'; tipHandle.dataset.balloonId = b.id; tipHandle.style.left = `${b.tail.tip.x}%`; tipHandle.style.top = `${b.tail.tip.y}%`; ui.balloonModalPreview.appendChild(tipHandle); const baseHandle = document.createElement('div'); baseHandle.className = 'tail-handle'; baseHandle.dataset.handleType = 'base'; baseHandle.dataset.balloonId = b.id; baseHandle.style.left = `${b.tail.base.x}%`; baseHandle.style.top = `${b.tail.base.y}%`; ui.balloonModalPreview.appendChild(baseHandle); } }); }
+            
+            function setupEventListeners() {
+                ui.mediaUpload.addEventListener('change', handleFileUpload);
+                ui.nextButton.addEventListener('click', nextPanel);
+                ui.prevButton.addEventListener('click', prevPanel);
+                let draggedItem = null;
+                ui.panelList.addEventListener('dragstart', (e) => { draggedItem = e.target.closest('.panel-item'); if(draggedItem){ setTimeout(() => { if (draggedItem) draggedItem.classList.add('draggable-ghost'); }, 0); }});
+                ui.panelList.addEventListener('dragend', () => { if (draggedItem) { draggedItem.classList.remove('draggable-ghost'); const newPanelOrderIds = Array.from(ui.panelList.children).map(el => el.dataset ? el.dataset.id : null).filter(id => id); state.webtoonData.panels.sort((a, b) => newPanelOrderIds.indexOf(a.id) - newPanelOrderIds.indexOf(b.id)); draggedItem = null; }});
+                ui.panelList.addEventListener('dragover', (e) => { e.preventDefault(); const overItem = e.target.closest('.panel-item'); if (overItem && draggedItem && overItem !== draggedItem) { const rect = overItem.getBoundingClientRect(); const next = (e.clientY - rect.top - (rect.height / 2)) > 0; if (next) ui.panelList.insertBefore(draggedItem, overItem.nextSibling); else ui.panelList.insertBefore(draggedItem, overItem); }});
+                
+                ui.closeBalloonModal.addEventListener('click', () => { ui.balloonEditModal.classList.add('hidden'); renderPanelList(); });
+                ui.addBalloonInModal.addEventListener('click', () => { const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); if(panel) { panel.balloons.push({ id: crypto.randomUUID(), text: 'New balloon...', style: 'speech', fontSize: 1.2, position: { x: 50, y: 50 }, tail: { base: {x: 40, y: 65}, tip: {x: 50, y: 85} } }); renderBalloonControlsInModal(); renderBalloonsInModal(); } });
+                ui.balloonModalControls.addEventListener('click', e => { const removeBtn = e.target.closest('button[data-action="remove-balloon"]'); if(removeBtn) { const controlEl = removeBtn.closest('[data-balloon-id]'); const balloonId = controlEl.dataset.balloonId; const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); if(panel) { panel.balloons = panel.balloons.filter(b => b.id !== balloonId); renderBalloonControlsInModal(); renderBalloonsInModal(); } } });
+                ui.balloonModalControls.addEventListener('input', e => { const target = e.target; const controlEl = target.closest('[data-balloon-id]'); if(!controlEl) return; const balloonId = controlEl.dataset.balloonId; const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); const balloon = panel.balloons.find(b => b.id === balloonId); if(!balloon) return; if(target.matches('[data-control="text"]')) { balloon.text = target.value; } else if (target.matches('[data-control="style"]')) { balloon.style = target.value; } else if (target.matches('[data-control="fontSize"]')) { balloon.fontSize = parseFloat(target.value); } renderBalloonsInModal(); });
+                let draggedEl = { el: null, type: null, balloonId: null }; ui.balloonModalPreview.addEventListener('mousedown', e => { const target = e.target.closest('.draggable-balloon, .tail-handle'); if(target) { draggedEl.el = target; draggedEl.balloonId = target.dataset.balloonId; draggedEl.type = target.classList.contains('draggable-balloon') ? 'balloon' : 'tail'; if(draggedEl.type === 'tail') draggedEl.handleType = target.dataset.handleType; target.style.cursor = 'grabbing'; document.addEventListener('mousemove', onDragMove); document.addEventListener('mouseup', onDragEnd); } }); function onDragMove(e) { if (!draggedEl.el) return; const rect = ui.balloonModalPreview.getBoundingClientRect(); let xPercent = ((e.clientX - rect.left) / rect.width) * 100; let yPercent = ((e.clientY - rect.top) / rect.height) * 100; xPercent = Math.max(0, Math.min(xPercent, 100)); yPercent = Math.max(0, Math.min(yPercent, 100)); draggedEl.el.style.left = `${xPercent}%`; draggedEl.el.style.top = `${yPercent}%`; const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); const balloon = panel.balloons.find(b => b.id === draggedEl.balloonId); if(!balloon) return; if(draggedEl.type === 'balloon') { balloon.position = {x: xPercent, y: yPercent}; } else { balloon.tail[draggedEl.handleType] = {x: xPercent, y: yPercent}; } renderBalloonsInModal(); } function onDragEnd() { if (!draggedEl.el) return; draggedEl.el.style.cursor = 'grab'; draggedEl = { el: null, type: null, balloonId: null }; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); }
+            }
+            
+            setupEventListeners();
+            updatePlayer();
         }
     </script>
 </body>
 </html>
-
