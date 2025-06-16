@@ -127,7 +127,7 @@
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        main();
+        document.addEventListener('DOMContentLoaded', main);
 
         function main() {
             const firebaseConfig = { apiKey: "AIzaSyD01LV0sf0wgkzEeFov6IPOYKnVEitcnTM", authDomain: "n-webtoon-player.firebaseapp.com", projectId: "n-webtoon-player", storageBucket: "n-webtoon-player.appspot.com", messagingSenderId: "1040378436513", appId: "1:1040378436513:web:4320ebcef0c0a727f949e0" };
