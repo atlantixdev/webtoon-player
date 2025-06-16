@@ -101,10 +101,14 @@
             function renderPanelList() {
                 ui.panelList.innerHTML = '';
                 if (panels.length === 0) {
-                    ui.panelList.appendChild(ui.placeholder);
-                    ui.placeholder.style.display = 'block';
+                    if (ui.placeholder) {
+                        ui.panelList.appendChild(ui.placeholder);
+                        ui.placeholder.style.display = 'block';
+                    }
                 } else {
-                    ui.placeholder.style.display = 'none';
+                    if (ui.placeholder) {
+                        ui.placeholder.style.display = 'none';
+                    }
                     panels.forEach(panel => {
                         const panelEl = createPanelElement(panel);
                         ui.panelList.appendChild(panelEl);
@@ -134,7 +138,7 @@
                                 });
 
                                 video.addEventListener('seeked', () => {
-                                    const canvas = document.createElement('canvas');
+                                     const canvas = document.createElement('canvas');
                                     canvas.width = video.videoWidth;
                                     canvas.height = video.videoHeight;
                                     const ctx = canvas.getContext('2d');
