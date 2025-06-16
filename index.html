@@ -145,6 +145,10 @@
                 
                 deleteBtn.addEventListener('click', () => {
                     state.webtoonData.panels = state.webtoonData.panels.filter(p => p.id !== panel.id);
+                    state.currentBalloonIndex = -1;
+                    if(state.currentPanel >= state.webtoonData.panels.length) {
+                        state.currentPanel = state.webtoonData.panels.length - 1;
+                    }
                     renderPanelList();
                     updatePlayer();
                 });
@@ -241,7 +245,7 @@
                 });
             }
 
-            function updatePlayer() {
+            function updatePlayer(isNewPanel = true) {
                 if (state.webtoonData.panels.length === 0) {
                     ui.panelImage.src = 'https://placehold.co/800x1200/111827/4f46e5?text=Webtoon+Player';
                     ui.panelImage.classList.remove('hidden');
@@ -252,10 +256,9 @@
                 const panel = state.webtoonData.panels[state.currentPanel];
                 if (!panel) return;
 
-                const mediaEl = panel.type === 'video' ? ui.panelVideo : ui.panelImage;
-                const otherEl = panel.type === 'video' ? ui.panelImage : ui.panelVideo;
-
-                if (mediaEl.src !== panel.mediaData) {
+                if(isNewPanel) {
+                    const mediaEl = panel.type === 'video' ? ui.panelVideo : ui.panelImage;
+                    const otherEl = panel.type === 'video' ? ui.panelImage : ui.panelVideo;
                     otherEl.classList.add('hidden');
                     mediaEl.src = panel.mediaData;
                     mediaEl.classList.remove('hidden');
@@ -267,8 +270,8 @@
                 ui.progressBar.style.width = `${progress}%`;
             }
             
-            async function nextPanel() { const panel = state.webtoonData.panels[state.currentPanel]; if (!panel) return; const maxSteps = (panel.balloons?.length || 0); if (state.currentBalloonIndex < maxSteps -1) { state.currentBalloonIndex++; updateBalloons(); } else { if(state.currentPanel < state.webtoonData.panels.length - 1){ state.currentPanel++; state.currentBalloonIndex = -1; updatePlayer(); } } }
-            async function prevPanel() { if(state.currentBalloonIndex > 0) { state.currentBalloonIndex--; updateBalloons(); } else { if (state.currentPanel > 0) { state.currentPanel--; const prevPanel = state.webtoonData.panels[state.currentPanel]; state.currentBalloonIndex = (prevPanel.balloons?.length || 0) -1; updatePlayer(); } } }
+            async function nextPanel() { const panel = state.webtoonData.panels[state.currentPanel]; if (!panel) return; const maxSteps = (panel.balloons?.length || 0); if (state.currentBalloonIndex < maxSteps -1) { state.currentBalloonIndex++; updatePlayer(false); } else { if(state.currentPanel < state.webtoonData.panels.length - 1){ state.currentPanel++; state.currentBalloonIndex = -1; updatePlayer(true); } } }
+            async function prevPanel() { if(state.currentBalloonIndex > 0) { state.currentBalloonIndex--; updatePlayer(false); } else { if (state.currentPanel > 0) { state.currentPanel--; const prevPanel = state.webtoonData.panels[state.currentPanel]; state.currentBalloonIndex = (prevPanel.balloons?.length || 0) -1; updatePlayer(true); } } }
             
             function openBalloonEditor(panelId) { state.activeEditPanelId = panelId; const panel = state.webtoonData.panels.find(p => p.id === panelId); if(!panel) return; if(panel.type === 'image') { ui.balloonModalPreview.style.backgroundImage = `url(${panel.mediaData})`; } else if (panel.thumbnailData) { ui.balloonModalPreview.style.backgroundImage = `url(${panel.thumbnailData})`; } else { ui.balloonModalPreview.style.backgroundImage = ''; ui.balloonModalPreview.style.backgroundColor = '#1f2937'; } renderBalloonControlsInModal(); renderBalloonsInModal(); ui.balloonEditModal.classList.remove('hidden'); }
             function renderBalloonControlsInModal() { const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); if(!panel) return; ui.balloonModalControls.innerHTML = ''; (panel.balloons || []).forEach(balloon => { const controlEl = document.createElement('div'); controlEl.className = 'bg-gray-900 p-3 rounded-md space-y-2'; controlEl.dataset.balloonId = balloon.id; controlEl.innerHTML = `<textarea data-control="text" class="w-full bg-gray-700 text-sm rounded p-1" rows="2" placeholder="Balloon text...">${balloon.text}</textarea><div class="flex space-x-2"><select data-control="style" class="flex-grow bg-gray-700 text-xs rounded p-1"><option value="speech">Speech</option><option value="thought">Thought</option><option value="shout">Shout</option></select><button data-action="remove-balloon" class="text-gray-500 hover:text-red-500 p-1"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div><div><label class="text-xs text-gray-400">Font Size</label><input data-control="fontSize" type="range" min="0.8" max="2.5" step="0.1" value="${balloon.fontSize || 1.2}" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"></div>`; controlEl.querySelector('select').value = balloon.style; ui.balloonModalControls.appendChild(controlEl); }); }
@@ -285,6 +288,7 @@
                 
                 ui.closeBalloonModal.addEventListener('click', () => { ui.balloonEditModal.classList.add('hidden'); renderPanelList(); });
                 ui.addBalloonInModal.addEventListener('click', () => { const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); if(panel) { panel.balloons.push({ id: crypto.randomUUID(), text: 'New balloon...', style: 'speech', fontSize: 1.2, position: { x: 50, y: 50 }, tail: { base: {x: 40, y: 65}, tip: {x: 50, y: 85} } }); renderBalloonControlsInModal(); renderBalloonsInModal(); } });
+                ui.balloonModalControls.addEventListener('click', e => { const removeBtn = e.target.closest('button[data-action="remove-balloon"]'); if(removeBtn) { const controlEl = removeBtn.closest('[data-balloon-id]'); const balloonId = controlEl.dataset.balloonId; const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); if(panel) { panel.balloons = panel.balloons.filter(b => b.id !== balloonId); renderBalloonControlsInModal(); renderBalloonsInModal(); } } });
                 ui.balloonModalControls.addEventListener('input', e => { const target = e.target; const controlEl = target.closest('[data-balloon-id]'); if(!controlEl) return; const balloonId = controlEl.dataset.balloonId; const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); const balloon = panel.balloons.find(b => b.id === balloonId); if(!balloon) return; if(target.matches('[data-control="text"]')) { balloon.text = target.value; } else if (target.matches('[data-control="style"]')) { balloon.style = target.value; } else if (target.matches('[data-control="fontSize"]')) { balloon.fontSize = parseFloat(target.value); } renderBalloonsInModal(); });
                 let draggedEl = { el: null, type: null, balloonId: null }; ui.balloonModalPreview.addEventListener('mousedown', e => { const target = e.target.closest('.draggable-balloon, .tail-handle'); if(target) { draggedEl.el = target; draggedEl.balloonId = target.dataset.balloonId; draggedEl.type = target.classList.contains('draggable-balloon') ? 'balloon' : 'tail'; if(draggedEl.type === 'tail') draggedEl.handleType = target.dataset.handleType; target.style.cursor = 'grabbing'; document.addEventListener('mousemove', onDragMove); document.addEventListener('mouseup', onDragEnd); } }); function onDragMove(e) { if (!draggedEl.el) return; const rect = ui.balloonModalPreview.getBoundingClientRect(); let xPercent = ((e.clientX - rect.left) / rect.width) * 100; let yPercent = ((e.clientY - rect.top) / rect.height) * 100; xPercent = Math.max(0, Math.min(xPercent, 100)); yPercent = Math.max(0, Math.min(yPercent, 100)); draggedEl.el.style.left = `${xPercent}%`; draggedEl.el.style.top = `${yPercent}%`; const panel = state.webtoonData.panels.find(p => p.id === state.activeEditPanelId); const balloon = panel.balloons.find(b => b.id === draggedEl.balloonId); if(!balloon) return; if(draggedEl.type === 'balloon') { balloon.position = {x: xPercent, y: yPercent}; } else { balloon.tail[draggedEl.handleType] = {x: xPercent, y: yPercent}; } renderBalloonsInModal(); } function onDragEnd() { if (!draggedEl.el) return; draggedEl.el.style.cursor = 'grab'; draggedEl = { el: null, type: null, balloonId: null }; document.removeEventListener('mousemove', onDragMove); document.removeEventListener('mouseup', onDragEnd); }
             }
