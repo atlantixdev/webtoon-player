@@ -200,15 +200,12 @@
             }
 
             function renderPanelList() {
+                if(ui.placeholder) ui.placeholder.style.display = state.webtoonData.panels.length > 0 ? 'none' : 'block';
                 ui.panelList.innerHTML = '';
-                if (state.webtoonData.panels.length === 0) {
-                    ui.panelList.appendChild(ui.placeholder);
-                } else {
-                    state.webtoonData.panels.forEach(panel => {
-                        const panelEl = createPanelElement(panel);
-                        ui.panelList.appendChild(panelEl);
-                    });
-                }
+                state.webtoonData.panels.forEach(panel => {
+                    const panelEl = createPanelElement(panel);
+                    ui.panelList.appendChild(panelEl);
+                });
             }
 
             async function processFile(file) {
