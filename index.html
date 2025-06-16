@@ -170,17 +170,15 @@
                 if (!files || files.length === 0) return;
                 ui.loadingIndicator.classList.remove('hidden');
 
-                const newPanels = [];
                 for (const file of files) {
                     try {
                         const panelData = await processFile(file);
-                        newPanels.push(panelData);
+                        state.webtoonData.panels.push(panelData);
                     } catch (error) {
                         console.error("Error processing file:", error);
                     }
                 }
                 
-                state.webtoonData.panels.push(...newPanels);
                 renderPanelList();
                 updatePlayer();
                 ui.loadingIndicator.classList.add('hidden');
@@ -210,8 +208,8 @@
                 });
             }
 
-            function updatePlayer() { if (state.webtoonData.panels.length === 0) { ui.panelImage.src = 'https://placehold.co/800x1200/111827/4f46e5?text=Webtoon+Player'; ui.panelImage.classList.remove('hidden'); ui.panelVideo.classList.add('hidden'); ui.progressBar.style.width = '0%'; return; } const panel = state.webtoonData.panels[state.currentPanel]; if(!panel) return; const mediaEl = panel.type === 'video' ? ui.panelVideo : ui.panelImage; const otherEl = panel.type === 'video' ? ui.panelImage : ui.panelVideo; otherEl.classList.add('hidden'); mediaEl.src = panel.mediaData; mediaEl.classList.remove('hidden'); ui.balloonsContainer.innerHTML = ''; if (!panel.balloons) return; panel.balloons.slice(0, state.currentBalloonIndex + 1).forEach(balloon => { const balloonEl = document.createElement('div'); balloonEl.className = `word-balloon comic-font ${balloon.style}`; balloonEl.textContent = balloon.text; balloonEl.style.fontSize = `${balloon.fontSize || 1.2}rem`; balloonEl.style.left = `${balloon.position.x}%`; balloonEl.style.top = `${balloon.position.y}%`; ui.balloonsContainer.appendChild(balloonEl); }); const progress = ((state.currentPanel + 1) / state.webtoonData.panels.length) * 100; ui.progressBar.style.width = `${progress}%`; }
-            async function nextPanel() { const panel = state.webtoonData.panels[state.currentPanel]; if (!panel) return; const maxSteps = (panel.balloons?.length || 0); if (state.currentBalloonIndex < maxSteps -1) { state.currentBalloonIndex++; updatePlayer(); } else { if(state.currentPanel < state.webtoonData.panels.length - 1){ state.currentPanel++; state.currentBalloonIndex = -1; updatePlayer(); } } }
+            function updatePlayer() { if (state.webtoonData.panels.length === 0) { ui.panelImage.src = 'https://placehold.co/800x1200/111827/4f46e5?text=Webtoon+Player'; ui.panelImage.classList.remove('hidden'); ui.panelVideo.classList.add('hidden'); ui.progressBar.style.width = '0%'; return; } const panel = state.webtoonData.panels[state.currentPanel]; if(!panel) return; const mediaEl = panel.type === 'video' ? ui.panelVideo : ui.panelImage; const otherEl = panel.type === 'video' ? ui.panelImage : ui.panelVideo; otherEl.classList.add('hidden'); mediaEl.src = panel.mediaData; mediaEl.classList.remove('hidden'); ui.balloonsContainer.innerHTML = ''; if (!panel.balloons) return; panel.balloons.slice(0, state.currentBalloonIndex + 1).forEach(balloon => { const balloonEl = document.createElement('div'); balloonEl.className = `word-balloon comic-font ${balloon.style}`; balloonEl.textContent = balloon.text; balloonEl.style.fontSize = `${balloon.fontSize || 1.2}rem`; balloonEl.style.left = `${balloon.position.x}%`; balloonEl.style.top = `${balloon.position.y}%`; ui.balloonsContainer.appendChild(balloonEl); if (balloon.style === 'speech' && balloon.tail) { const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute('class', 'balloon-tail-svg'); svg.setAttribute('viewBox', '0 0 100 100'); svg.setAttribute('preserveAspectRatio', 'none'); const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); const p = balloon.position; const t = balloon.tail.tip; const b1 = balloon.tail.base; const angle = Math.atan2(b1.y - p.y, b1.x - p.x); const width = 3; path.setAttribute('d', `M ${b1.x - width * Math.sin(angle)},${b1.y + width * Math.cos(angle)} L ${t.x},${t.y} L ${b1.x + width * Math.sin(angle)},${b1.y - width * Math.cos(angle)} Z`); path.setAttribute('class', 'balloon-tail'); svg.appendChild(path); ui.balloonsContainer.appendChild(svg); } }); const progress = ((state.currentPanel + 1) / state.webtoonData.panels.length) * 100; ui.progressBar.style.width = `${progress}%`; }
+            async function nextPanel() { const panel = state.webtoonData.panels[state.currentPanel]; if (!panel) return; const maxSteps = (panel.balloons?.length || 0); if (state.currentBalloonIndex < maxSteps) { state.currentBalloonIndex++; updatePlayer(); } else { if(state.currentPanel < state.webtoonData.panels.length - 1){ state.currentPanel++; state.currentBalloonIndex = -1; updatePlayer(); } } }
             async function prevPanel() { if(state.currentBalloonIndex > -1) { state.currentBalloonIndex--; updatePlayer(); } else { if (state.currentPanel > 0) { state.currentPanel--; const prevPanel = state.webtoonData.panels[state.currentPanel]; const maxSteps = (prevPanel.balloons?.length || 0); state.currentBalloonIndex = maxSteps; updatePlayer(); } } }
             
             function openBalloonEditor(panelId) { state.activeEditPanelId = panelId; const panel = state.webtoonData.panels.find(p => p.id === panelId); if(!panel) return; if(panel.type === 'image') { ui.balloonModalPreview.style.backgroundImage = `url(${panel.mediaData})`; } else if (panel.thumbnailData) { ui.balloonModalPreview.style.backgroundImage = `url(${panel.thumbnailData})`; } else { ui.balloonModalPreview.style.backgroundImage = ''; ui.balloonModalPreview.style.backgroundColor = '#1f2937'; } renderBalloonControlsInModal(); renderBalloonsInModal(); ui.balloonEditModal.classList.remove('hidden'); }
