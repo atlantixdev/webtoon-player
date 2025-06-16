@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webtoon Uploader - Foundation Test</title>
+    <title>Webtoon Uploader - Panel Management Test</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
         .thumbnail-container { position: relative; width: 4rem; height: 5rem; flex-shrink: 0; }
         .thumbnail-icon { position: absolute; bottom: 2px; right: 2px; background-color: rgba(0,0,0,0.6); border-radius: 9999px; padding: 2px; }
+        .draggable-ghost { opacity: 0.5; background: #4f46e5; }
+        .drag-handle { cursor: move; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-8">
     <div class="max-w-xl mx-auto">
         <header class="text-center">
-            <h1 class="text-2xl font-bold text-indigo-400">Foundation Uploader Test</h1>
-            <p class="text-sm text-gray-400 mt-1">Please try uploading one or more images/videos.</p>
+            <h1 class="text-2xl font-bold text-indigo-400">Panel Management Test</h1>
+            <p class="text-sm text-gray-400 mt-1">Upload files, then try deleting and reordering them.</p>
         </header>
         <div class="mt-6">
             <label for="media-upload" class="w-full inline-block bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer hover:bg-indigo-700 transition-colors text-center">
@@ -45,20 +47,25 @@
                 loadingIndicator: document.getElementById('loading-indicator'),
             };
 
-            let panelCounter = 0;
             let panels = [];
+            let panelCounter = 0;
 
             function createPanelElement(panel) {
                 const el = document.createElement('div');
-                el.className = 'bg-gray-700 p-2 rounded-lg flex items-center space-x-3';
-                
+                el.className = 'panel-item bg-gray-700 p-2 rounded-lg flex items-center space-x-3';
+                el.dataset.id = panel.id;
+                el.setAttribute('draggable', 'true');
+
+                const dragHandle = document.createElement('div');
+                dragHandle.className = 'drag-handle text-gray-500 hover:text-white transition-colors p-1';
+                dragHandle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 01.707.293l3 3a1 1 0 01-1.414 1.414L10 5.414 7.707 7.707a1 1 0 01-1.414-1.414l3-3A1 1 0 0110 3zm-3.707 9.293a1 1 0 011.414 0L10 14.586l2.293-2.293a1 1 0 011.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
+                el.appendChild(dragHandle);
+
                 const thumbContainer = document.createElement('div');
                 thumbContainer.className = 'thumbnail-container';
-
                 const thumbImg = document.createElement('img');
                 thumbImg.className = 'w-16 h-20 object-cover rounded-md';
                 thumbImg.src = panel.thumbnailData || panel.mediaData;
-                
                 thumbContainer.appendChild(thumbImg);
                 
                 if (panel.type === 'video') {
@@ -70,23 +77,41 @@
 
                 el.appendChild(thumbContainer);
 
+                const infoContainer = document.createElement('div');
+                infoContainer.className = 'flex-grow';
                 const fileNameEl = document.createElement('span');
-                fileNameEl.className = 'text-sm text-green-400';
-                fileNameEl.textContent = `Panel #${panel.index} - Upload Successful`;
-                el.appendChild(fileNameEl);
+                fileNameEl.className = 'text-sm text-gray-300';
+                fileNameEl.textContent = `Panel #${panel.index}`;
+                infoContainer.appendChild(fileNameEl);
+                el.appendChild(infoContainer);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'text-gray-500 hover:text-red-500 p-1';
+                deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>`;
                 
+                deleteBtn.addEventListener('click', () => {
+                    panels = panels.filter(p => p.id !== panel.id);
+                    renderPanelList();
+                });
+                el.appendChild(deleteBtn);
+
                 return el;
             }
 
             function renderPanelList() {
-                if(ui.placeholder) {
-                    ui.placeholder.style.display = 'none';
+                ui.panelList.innerHTML = '';
+                if (panels.length === 0) {
+                    const placeholder = document.createElement('div');
+                    placeholder.id = 'placeholder-message';
+                    placeholder.className = 'text-center text-gray-500 p-8 border-2 border-dashed border-gray-700 rounded-lg';
+                    placeholder.innerHTML = `<p>Uploaded panels will appear here.</p>`;
+                    ui.panelList.appendChild(placeholder);
+                } else {
+                    panels.forEach(panel => {
+                        const panelEl = createPanelElement(panel);
+                        ui.panelList.appendChild(panelEl);
+                    });
                 }
-                ui.panelList.innerHTML = ''; // Clear the list before re-rendering
-                panels.forEach(panel => {
-                    const panelEl = createPanelElement(panel);
-                    ui.panelList.appendChild(panelEl);
-                });
             }
 
             async function handleFileUpload(event) {
@@ -106,11 +131,11 @@
                                 video.muted = true;
                                 video.playsInline = true;
                                 
-                                video.onloadeddata = () => {
+                                video.addEventListener('loadeddata', () => {
                                     video.currentTime = 1; // Seek to 1 second
-                                };
+                                });
 
-                                video.onseeked = () => {
+                                video.addEventListener('seeked', () => {
                                      const canvas = document.createElement('canvas');
                                     canvas.width = video.videoWidth;
                                     canvas.height = video.videoHeight;
@@ -118,9 +143,9 @@
                                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                                     panelData.thumbnailData = canvas.toDataURL('image/jpeg');
                                     resolve(panelData);
-                                };
+                                });
                                 
-                                video.onerror = (err) => reject(new Error('Video file could not be loaded.'));
+                                video.addEventListener('error', (err) => reject(new Error('Video file could not be loaded.')));
                                 video.src = e.target.result;
                             } else {
                                 resolve(panelData);
@@ -143,8 +168,43 @@
                     event.target.value = '';
                 }
             }
+            
+            let draggedItem = null;
+            ui.panelList.addEventListener('dragstart', (e) => { 
+                draggedItem = e.target.closest('.panel-item');
+                if(draggedItem){
+                    setTimeout(() => {
+                        if(draggedItem) draggedItem.classList.add('draggable-ghost');
+                    }, 0);
+                }
+            });
+            ui.panelList.addEventListener('dragend', () => {
+                if(draggedItem) {
+                    draggedItem.classList.remove('draggable-ghost');
+                    const newPanelOrderIds = Array.from(ui.panelList.children)
+                        .map(el => el.dataset ? el.dataset.id : null)
+                        .filter(id => id);
+
+                    panels.sort((a, b) => newPanelOrderIds.indexOf(a.id) - newPanelOrderIds.indexOf(b.id));
+                    draggedItem = null;
+                }
+            });
+            ui.panelList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const overItem = e.target.closest('.panel-item');
+                if (overItem && draggedItem && overItem !== draggedItem) {
+                    const rect = overItem.getBoundingClientRect();
+                    const next = (e.clientY - rect.top - (rect.height / 2)) > 0;
+                    if (next) {
+                        ui.panelList.insertBefore(draggedItem, overItem.nextSibling);
+                    } else {
+                        ui.panelList.insertBefore(draggedItem, overItem);
+                    }
+                }
+            });
 
             ui.mediaUpload.addEventListener('change', handleFileUpload);
+            renderPanelList();
         }
     </script>
 </body>
