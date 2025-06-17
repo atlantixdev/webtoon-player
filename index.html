@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Webtoon Creator and Player (Debug Mode)</title>
+    <title>Webtoon Creator and Player</title>
     <style>
         /* General Body and Theming */
         body {
@@ -12,7 +12,7 @@
             height: 100vh;
             margin: 0;
             background-color: #1e1e1e;
-            color: #dcdcdc; /* Default light text color for the whole app */
+            color: #dcdcdc;
         }
 
         /* Creator Panel on the left */
@@ -44,16 +44,14 @@
             text-align: center;
         }
         
-        #welcome-message {
-            color: #888;
-        }
+        #welcome-message { color: #888; }
 
         #player-image {
             max-width: 90%;
             max-height: 90%;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             border-radius: 4px;
-            display: none; /* Initially hidden */
+            display: none;
         }
 
         /* Styling for UI controls */
@@ -67,8 +65,10 @@
             font-size: 1em;
             transition: background-color 0.2s;
         }
-
         button:hover { background-color: #0056b3; }
+        .secondary-btn { background-color: #5a6268; }
+        .secondary-btn:hover { background-color: #4a4f54; }
+
 
         input, select, textarea {
             background-color: #333;
@@ -85,53 +85,30 @@
         /* Panel items in the creator list */
         .panel-item {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            gap: 10px;
             padding: 10px;
             border: 1px solid #555;
             border-radius: 4px;
             background-color: #3a3a3a;
         }
 
-        .panel-item img {
+        .panel-item-header { display: flex; align-items: center; }
+        .panel-item-header img {
             width: 60px;
             height: 60px;
             margin-right: 15px;
             object-fit: cover;
             border-radius: 4px;
         }
-
-        .panel-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            width: 100%;
-        }
         
         /* Navigation and Progress */
-        .nav-buttons {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-        }
-
-        .progress-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 8px;
-            background-color: #444;
-        }
-
-        .progress {
-            height: 100%;
-            background-color: #007bff;
-            width: 0%;
-        }
+        .nav-buttons { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10; }
+        .progress-bar { position: absolute; bottom: 0; left: 0; width: 100%; height: 8px; background-color: #444; }
+        .progress { height: 100%; background-color: #007bff; width: 0%; }
         
-        /* Word Balloons */
+        /* Word Balloons in Player */
+        #balloons-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
         .word-balloon {
             position: absolute;
             background: white;
@@ -145,362 +122,34 @@
             word-wrap: break-word;
         }
 
-        /* Modal for "My Webtoons" */
-        #my-webtoons-modal {
+        /* --- MODAL STYLES --- */
+        .modal {
             display: none;
             position: fixed;
-            top: 0; left: 0;
+            z-index: 1000;
+            left: 0; top: 0;
             width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
+            background-color: rgba(0,0,0,0.7);
             justify-content: center;
             align-items: center;
-            z-index: 100;
         }
-
-        #my-webtoons-modal > div {
+        .modal-content {
             background-color: #2d2d2d;
             padding: 25px;
             border-radius: 5px;
-            width: 500px;
-            max-height: 80%;
-            overflow-y: auto;
             border: 1px solid #555;
+            position: relative;
         }
-        
-        #webtoon-projects-list { list-style: none; padding: 0; }
+        #my-webtoons-modal .modal-content { width: 500px; max-height: 80%; overflow-y: auto; }
+        #balloon-editor-modal .modal-content { width: 90%; max-width: 1000px; }
+        .modal-close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; font-weight: bold; color: #aaa; cursor: pointer; }
 
-        #webtoon-projects-list li {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding: 10px;
-            border-bottom: 1px solid #555;
-            background-color: #3a3a3a;
-            border-radius: 4px;
-        }
-
-        #webtoon-projects-list button {
-            margin-left: 10px;
-            font-size: 0.9em;
-            padding: 5px 10px;
-        }
-        
-        #webtoon-projects-list .delete-btn { background-color: #c9302c; }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
-</head>
-<body>
-
-    <div id="creator-panel">
-        <h2>Webtoon Creator</h2>
-        <div>
-            <button id="new-project-btn">New Project</button>
-            <button id="my-webtoons-btn">My Webtoons</button>
-        </div>
-        <hr>
-        <input type="text" id="webtoon-title" placeholder="Webtoon Title">
-        <input type="file" id="image-upload" multiple accept="image/*">
-        <div id="panel-list"></div>
-        <button id="save-webtoon-btn" style="margin-top: auto;">Save Webtoon</button>
-        <div id="embed-code-container" style="display:none;">
-            <h3>Embed Code</h3>
-            <textarea id="embed-code" readonly rows="4"></textarea>
-        </div>
-    </div>
-
-    <div id="player-panel">
-        <div id="welcome-message">
-            <h2>Welcome to the Webtoon Player</h2>
-            <p>Load a project or create a new one to begin.</p>
-        </div>
-        <img id="player-image" src="" alt="Webtoon Panel">
-        <canvas id="effects-canvas"></canvas>
-        <div id="balloons-container"></div>
-        <div class="nav-buttons">
-            <button id="prev-btn">Previous</button>
-            <button id="next-btn">Next</button>
-        </div>
-        <div class="progress-bar">
-            <div id="progress" class="progress"></div>
-        </div>
-    </div>
-
-    <div id="my-webtoons-modal">
-        <div>
-            <h3>My Webtoons</h3>
-            <ul id="webtoon-projects-list"></ul>
-            <button id="close-modal-btn" style="margin-top: 10px;">Close</button>
-        </div>
-    </div>
-
-    <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, getDoc, updateDoc, deleteDoc, query, orderBy, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-
-        // Your web app's Firebase configuration
-        const firebaseConfig = {
-          apiKey: "AIzaSyD01LV0sf0wgkzEeFov6IPOYKnVEitcnTM",
-          authDomain: "n-webtoon-player.firebaseapp.com",
-          projectId: "n-webtoon-player",
-          storageBucket: "n-webtoon-player.firebasestorage.app",
-          messagingSenderId: "1040378436513",
-          appId: "1:1040378436513:web:4320ebcef0c0a727f949e0",
-          measurementId: "G-FSZSE5TMRF"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        let panels = [];
-        let currentPanelIndex = 0;
-        let currentBalloonIndex = -1; 
-        let currentProjectId = null;
-
-        const creatorPanel = document.getElementById('creator-panel');
-        const playerPanel = document.getElementById('player-panel');
-        const imageUpload = document.getElementById('image-upload');
-        const panelList = document.getElementById('panel-list');
-        const playerImage = document.getElementById('player-image');
-        const prevBtn = document.getElementById('prev-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const progress = document.getElementById('progress');
-        const welcomeMessage = document.getElementById('welcome-message');
-        const balloonsContainer = document.getElementById('balloons-container');
-        const saveWebtoonBtn = document.getElementById('save-webtoon-btn');
-        const embedCodeContainer = document.getElementById('embed-code-container');
-        const embedCode = document.getElementById('embed-code');
-        const webtoonTitle = document.getElementById('webtoon-title');
-        const newProjectBtn = document.getElementById('new-project-btn');
-        const myWebtoonsBtn = document.getElementById('my-webtoons-btn');
-        const myWebtoonsModal = document.getElementById('my-webtoons-modal');
-        const webtoonProjectsList = document.getElementById('webtoon-projects-list');
-        const closeModalBtn = document.getElementById('close-modal-btn');
-        
-        function showPlayerContent(showImage) {
-            welcomeMessage.style.display = showImage ? 'none' : 'block';
-            playerImage.style.display = showImage ? 'block' : 'none';
-        }
-
-        function playCurrentPanel() {
-            if (panels.length === 0 || currentPanelIndex < 0) {
-                showPlayerContent(false);
-                return;
-            }
-            showPlayerContent(true);
-            const panel = panels[currentPanelIndex];
-            playerImage.src = panel.src;
-            updateProgress();
-            renderBalloons();
-        }
-        
-        function renderBalloons() {
-            console.log(`--- Calling renderBalloons() ---`);
-            console.log(`Current Panel Index: ${currentPanelIndex}, Current Balloon Index: ${currentBalloonIndex}`);
-            
-            balloonsContainer.innerHTML = ''; 
-            const panel = panels[currentPanelIndex];
-
-            if (panel && currentBalloonIndex > -1) {
-                console.log(`Panel has ${panel.balloons.length} balloons. Will render up to index ${currentBalloonIndex}.`);
-                for (let i = 0; i <= currentBalloonIndex; i++) {
-                    const balloonData = panel.balloons[i];
-                    if (balloonData) {
-                        console.log(`Rendering balloon ${i}:`, balloonData);
-                        const balloonElem = document.createElement('div');
-                        balloonElem.className = 'word-balloon';
-                        balloonElem.textContent = balloonData.text;
-                        balloonElem.style.left = (balloonData.x || 50) + 'px';
-                        balloonElem.style.top = (balloonData.y || 50) + 'px';
-                        balloonsContainer.appendChild(balloonElem);
-                    } else {
-                        console.log(`Warning: No balloon data found for index ${i}`);
-                    }
-                }
-            } else {
-                console.log(`Condition not met for rendering. Panel exists: ${!!panel}, Balloon Index > -1: ${currentBalloonIndex > -1}`);
-            }
-        }
-
-        // --- All other functions (updateProgress, renderPanelList, saveWebtoon, etc.) remain the same ---
-        function updateProgress() {
-            if (panels.length === 0) {
-                progress.style.width = '0%';
-                return;
-            }
-            const totalSteps = panels.reduce((acc, p) => acc + 1 + (p.balloons ? p.balloons.length : 0), 0);
-            let completedSteps = 0;
-            for (let i = 0; i < currentPanelIndex; i++) {
-                completedSteps += 1 + (panels[i].balloons ? panels[i].balloons.length : 0);
-            }
-            completedSteps += 1 + currentBalloonIndex;
-            progress.style.width = (completedSteps / totalSteps) * 100 + '%';
-        }
-
-        function renderPanelList() {
-            panelList.innerHTML = '';
-            panels.forEach((panel, index) => {
-                const item = document.createElement('div');
-                item.className = 'panel-item';
-                item.dataset.index = index;
-                item.innerHTML = `
-                    <img src="${panel.src}" alt="Panel ${index + 1}">
-                    <div class="panel-controls">
-                        <select class="visual-effect" disabled><option>Effects coming soon</option></select>
-                        <button class="add-balloon-btn">Add Balloon</button>
-                        <div class="balloons-list"></div>
-                    </div>`;
-                const balloonsList = item.querySelector('.balloons-list');
-                panel.balloons.forEach((balloon, bIndex) => {
-                    const balloonInput = document.createElement('input');
-                    balloonInput.type = 'text';
-                    balloonInput.value = balloon.text;
-                    balloonInput.placeholder = `Balloon ${bIndex + 1} text`;
-                    balloonInput.oninput = (e) => { panels[index].balloons[bIndex].text = e.target.value; };
-                    balloonsList.appendChild(balloonInput);
-                });
-                item.querySelector('.add-balloon-btn').onclick = () => {
-                    panels[index].balloons.push({ text: 'New Text', x: 50, y: 50 });
-                    renderPanelList();
-                };
-                panelList.appendChild(item);
-            });
-        }
-        
-        async function saveWebtoon() {
-            if (!webtoonTitle.value) { alert('Please enter a title.'); return; }
-            const webtoonData = { title: webtoonTitle.value, panels, createdAt: serverTimestamp() };
-            try {
-                if (currentProjectId) {
-                    await updateDoc(doc(db, 'webtoons', currentProjectId), webtoonData);
-                    alert('Webtoon updated!');
-                } else {
-                    const docRef = await addDoc(collection(db, 'webtoons'), webtoonData);
-                    currentProjectId = docRef.id;
-                    alert('Webtoon saved!');
-                }
-                generateEmbedCode(currentProjectId);
-            } catch (e) { console.error("Error saving:", e); alert("Could not save webtoon."); }
-        }
-
-        async function loadWebtoon(id) {
-            try {
-                const docSnap = await getDoc(doc(db, "webtoons", id));
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    panels = data.panels || [];
-                    webtoonTitle.value = data.title || '';
-                    currentProjectId = id;
-                    currentPanelIndex = 0;
-                    currentBalloonIndex = -1;
-                    renderPanelList();
-                    playCurrentPanel();
-                }
-            } catch (e) { console.error("Error loading:", e); alert("Could not load webtoon."); }
-        }
-        
-        async function showMyWebtoons() {
-            myWebtoonsModal.style.display = 'flex';
-            const q = query(collection(db, "webtoons"), orderBy("createdAt", "desc"));
-            const querySnapshot = await getDocs(q);
-            webtoonProjectsList.innerHTML = '';
-            querySnapshot.forEach((docSnap) => {
-                const item = document.createElement('li');
-                item.textContent = docSnap.data().title || 'Untitled';
-                const btnContainer = document.createElement('div');
-                const loadBtn = document.createElement('button');
-                loadBtn.textContent = 'Load';
-                loadBtn.onclick = () => { loadWebtoon(docSnap.id); myWebtoonsModal.style.display = 'none'; };
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.className = 'delete-btn';
-                deleteBtn.onclick = async () => {
-                    if (confirm('Are you sure?')) {
-                        await deleteDoc(doc(db, "webtoons", docSnap.id));
-                        showMyWebtoons();
-                    }
-                };
-                btnContainer.appendChild(loadBtn);
-                btnContainer.appendChild(deleteBtn);
-                item.appendChild(btnContainer);
-                webtoonProjectsList.appendChild(item);
-            });
-        }
-
-        function newProject() {
-            panels = [];
-            currentProjectId = null;
-            currentPanelIndex = 0;
-            currentBalloonIndex = -1;
-            webtoonTitle.value = '';
-            panelList.innerHTML = '';
-            embedCodeContainer.style.display = 'none';
-            playCurrentPanel();
-        }
-
-        function generateEmbedCode(id) {
-            const url = `${window.location.origin}${window.location.pathname}?webtoonId=${id}`;
-            embedCode.value = `<iframe src="${url}" width="800" height="600" frameborder="0"></iframe>`;
-            embedCodeContainer.style.display = 'block';
-        }
-
-        // --- Event Listeners ---
-        nextBtn.addEventListener('click', () => {
-            console.log("--- Next Button Clicked ---");
-            console.log(`Before logic: Panel Index = ${currentPanelIndex}, Balloon Index = ${currentBalloonIndex}`);
-            
-            if (panels.length === 0) {
-                console.log("No panels to navigate.");
-                return;
-            }
-            const panel = panels[currentPanelIndex];
-
-            if (panel.balloons && currentBalloonIndex < panel.balloons.length - 1) {
-                currentBalloonIndex++;
-                console.log(`Result: Show next balloon. New Balloon Index = ${currentBalloonIndex}`);
-                renderBalloons();
-            } 
-            else if (currentPanelIndex < panels.length - 1) {
-                currentPanelIndex++;
-                currentBalloonIndex = -1;
-                console.log(`Result: Go to next panel. New Panel Index = ${currentPanelIndex}, Balloon Index = -1`);
-                playCurrentPanel();
-            } else {
-                console.log("Result: End of webtoon.");
-            }
-            updateProgress();
-        });
-
-        prevBtn.addEventListener('click', () => { /* ... previous button logic ... */ });
-        
-        imageUpload.onchange = (e) => {
-            for (const file of e.target.files) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    panels.push({ src: event.target.result, balloons: [] });
-                    renderPanelList();
-                    if (panels.length === 1) playCurrentPanel();
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-        
-        saveWebtoonBtn.addEventListener('click', saveWebtoon);
-        myWebtoonsBtn.addEventListener('click', showMyWebtoons);
-        closeModalBtn.addEventListener('click', () => { myWebtoonsModal.style.display = 'none'; });
-        newProjectBtn.addEventListener('click', newProject);
-
-        // Initial Setup
-        const urlParams = new URLSearchParams(window.location.search);
-        const webtoonId = urlParams.get('webtoonId');
-        if (webtoonId) {
-            creatorPanel.style.display = 'none';
-            loadWebtoon(webtoonId);
-        } else {
-            newProject();
-        }
-    </script>
-</body>
-</html>
+        /* Balloon Editor Specific Styles */
+        #balloon-editor-area {
+            position: relative;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            height: 60vh;
+            border: 1px solid #555;
+            overflow: hidden;
