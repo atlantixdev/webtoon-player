@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Webtoon Creator and Player</title>
     <style>
+        :root { --editor-height: 70vh; }
         /* General Body and Theming */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -27,11 +28,7 @@
             flex-direction: column;
             gap: 15px;
         }
-
-        #creator-panel h2, #creator-panel h3 {
-            color: #ffffff;
-            margin: 0;
-        }
+        #creator-panel h2, #creator-panel h3 { color: #ffffff; margin: 0; }
 
         /* Player Panel on the right */
         #player-panel {
@@ -42,10 +39,9 @@
             align-items: center;
             background-color: #1a1a1a;
             text-align: center;
+            overflow: hidden;
         }
-        
         #welcome-message { color: #888; }
-
         #player-image {
             max-width: 90%;
             max-height: 90%;
@@ -55,52 +51,18 @@
         }
 
         /* Styling for UI controls */
-        button {
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            font-size: 1em;
-            transition: background-color 0.2s;
-        }
+        button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; background-color: #007bff; color: white; font-size: 1em; transition: background-color 0.2s; }
         button:hover { background-color: #0056b3; }
         .secondary-btn { background-color: #5a6268; }
         .secondary-btn:hover { background-color: #4a4f54; }
 
-
-        input, select, textarea {
-            background-color: #333;
-            color: #dcdcdc;
-            border: 1px solid #555;
-            border-radius: 4px;
-            padding: 10px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
+        input, select, textarea { background-color: #333; color: #dcdcdc; border: 1px solid #555; border-radius: 4px; padding: 10px; width: 100%; box-sizing: border-box; }
         hr { border-color: #444; }
 
         /* Panel items in the creator list */
-        .panel-item {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            padding: 10px;
-            border: 1px solid #555;
-            border-radius: 4px;
-            background-color: #3a3a3a;
-        }
-
+        .panel-item { display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid #555; border-radius: 4px; background-color: #3a3a3a; }
         .panel-item-header { display: flex; align-items: center; }
-        .panel-item-header img {
-            width: 60px;
-            height: 60px;
-            margin-right: 15px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
+        .panel-item-header img { width: 60px; height: 60px; margin-right: 15px; object-fit: cover; border-radius: 4px; }
         
         /* Navigation and Progress */
         .nav-buttons { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 10; }
@@ -109,50 +71,23 @@
         
         /* Word Balloons in Player */
         #balloons-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .word-balloon {
-            position: absolute;
-            background: white;
-            color: black;
-            border-radius: 20px;
-            padding: 10px 15px;
-            border: 2px solid black;
-            font-family: 'Bangers', cursive;
-            box-shadow: 3px 3px 5px rgba(0,0,0,0.3);
-            max-width: 250px;
-            word-wrap: break-word;
-        }
+        .word-balloon { position: absolute; background: white; color: black; border-radius: 20px; padding: 10px 15px; border: 2px solid black; font-family: 'Bangers', cursive; box-shadow: 3px 3px 5px rgba(0,0,0,0.3); max-width: 250px; word-wrap: break-word; }
 
         /* --- MODAL STYLES --- */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0; top: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.7);
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background-color: #2d2d2d;
-            padding: 25px;
-            border-radius: 5px;
-            border: 1px solid #555;
-            position: relative;
-        }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); justify-content: center; align-items: center; }
+        .modal-content { background-color: #2d2d2d; padding: 25px; border-radius: 5px; border: 1px solid #555; position: relative; }
         #my-webtoons-modal .modal-content { width: 500px; max-height: 80%; overflow-y: auto; }
-        #balloon-editor-modal .modal-content { width: 90%; max-width: 1000px; }
-        .modal-close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; font-weight: bold; color: #aaa; cursor: pointer; }
-
+        #balloon-editor-modal .modal-content { width: 90%; max-width: 1200px; display: flex; flex-direction: column; gap: 15px; }
+        
         /* Balloon Editor Specific Styles */
         #balloon-editor-area {
             position: relative;
             background-size: contain;
             background-repeat: no-repeat;
             background-position: center;
-            height: 60vh;
+            height: var(--editor-height);
             border: 1px solid #555;
-            overflow: hidden;
+            margin: 0 auto; /* Center the editor area */
         }
         .draggable-balloon {
             position: absolute;
@@ -164,6 +99,8 @@
             font-family: 'Bangers', cursive;
             cursor: move;
             touch-action: none; /* for interact.js */
+            /* Start with transform, will be converted to left/top */
+            transform: translate(10%, 10%);
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
@@ -193,18 +130,19 @@
 
     <div id="my-webtoons-modal" class="modal">
         <div class="modal-content">
-            <span id="close-my-webtoons-modal" class="modal-close-btn">&times;</span>
             <h3>My Webtoons</h3>
             <ul id="webtoon-projects-list" style="list-style: none; padding: 0;"></ul>
+            <button id="close-my-webtoons-modal" class="secondary-btn">Close</button>
         </div>
     </div>
     
     <div id="balloon-editor-modal" class="modal">
         <div class="modal-content">
-            <span id="close-balloon-editor-modal" class="modal-close-btn">&times;</span>
             <h3>Balloon Editor</h3>
-            <p>Drag balloons to position them. Add new balloons from the main panel.</p>
-            <div id="balloon-editor-area"></div>
+            <p>Drag balloons to position them relative to the image.</p>
+            <div id="balloon-editor-area">
+                 </div>
+            <button id="save-and-close-balloon-editor-btn" style="align-self: flex-end;">Save & Close</button>
         </div>
     </div>
 
@@ -219,8 +157,7 @@
             projectId: "n-webtoon-player",
             storageBucket: "n-webtoon-player.firebasestorage.app",
             messagingSenderId: "1040378436513",
-            appId: "1:1040378436513:web:4320ebcef0c0a727f949e0",
-            measurementId: "G-FSZSE5TMRF"
+            appId: "1:1040378436513:web:4320ebcef0c0a727f949e0"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -232,7 +169,6 @@
         let currentProjectId = null;
         let editingPanelIndex = -1;
 
-        // Get all DOM elements
         const playerImage = document.getElementById('player-image');
         const welcomeMessage = document.getElementById('welcome-message');
         const balloonsContainer = document.getElementById('balloons-container');
@@ -245,48 +181,44 @@
         const imageUpload = document.getElementById('image-upload');
         const webtoonTitle = document.getElementById('webtoon-title');
         const progress = document.getElementById('progress');
-
-        // Modals
         const myWebtoonsModal = document.getElementById('my-webtoons-modal');
         const balloonEditorModal = document.getElementById('balloon-editor-modal');
         const balloonEditorArea = document.getElementById('balloon-editor-area');
-
-
-        // --- Core Functions ---
         
-        function playCurrentPanel() {
-            if (panels.length === 0 || currentPanelIndex < 0) {
-                welcomeMessage.style.display = 'block';
-                playerImage.style.display = 'none';
-                return;
-            }
-            welcomeMessage.style.display = 'none';
-            playerImage.style.display = 'block';
-            
-            const panel = panels[currentPanelIndex];
-            playerImage.src = panel.src;
-            updateProgress();
-            renderBalloonsForPlayer();
-        }
+        // --- Core Functions ---
         
         function renderBalloonsForPlayer() {
             balloonsContainer.innerHTML = '';
             const panel = panels[currentPanelIndex];
-            if (panel && currentBalloonIndex > -1) {
-                for (let i = 0; i <= currentBalloonIndex; i++) {
-                    const balloonData = panel.balloons[i];
-                    if (balloonData) {
-                        const balloonElem = document.createElement('div');
-                        balloonElem.className = 'word-balloon';
-                        balloonElem.textContent = balloonData.text;
-                        balloonElem.style.left = (balloonData.x || 50) + 'px';
-                        balloonElem.style.top = (balloonData.y || 50) + 'px';
-                        balloonsContainer.appendChild(balloonElem);
-                    }
+            if (!panel || currentBalloonIndex < 0) return;
+
+            // Get the actual rendered image's position and size
+            const imageRect = playerImage.getBoundingClientRect();
+            const containerRect = playerPanel.getBoundingClientRect();
+            
+            // Calculate the image's offset within the player panel
+            const imageOffsetX = imageRect.left - containerRect.left;
+            const imageOffsetY = imageRect.top - containerRect.top;
+
+            for (let i = 0; i <= currentBalloonIndex; i++) {
+                const balloonData = panel.balloons[i];
+                if (balloonData) {
+                    const balloonElem = document.createElement('div');
+                    balloonElem.className = 'word-balloon';
+                    balloonElem.textContent = balloonData.text;
+                    
+                    // Calculate position based on image size and offset
+                    const left = imageOffsetX + (balloonData.x * imageRect.width);
+                    const top = imageOffsetY + (balloonData.y * imageRect.height);
+                    
+                    balloonElem.style.left = left + 'px';
+                    balloonElem.style.top = top + 'px';
+                    
+                    balloonsContainer.appendChild(balloonElem);
                 }
             }
         }
-        
+
         function renderPanelList() {
             panelList.innerHTML = '';
             panels.forEach((panel, index) => {
@@ -313,7 +245,8 @@
                 });
 
                 item.querySelector('.add-balloon-btn').onclick = () => {
-                    panel.balloons.push({ text: 'New Text', x: 50, y: 50 });
+                    // Add new balloons with a default percentage position
+                    panel.balloons.push({ text: 'New Text', x: 0.1, y: 0.1 });
                     renderPanelList();
                 };
                 item.querySelector('.edit-balloons-btn').onclick = () => openBalloonEditor(index);
@@ -328,24 +261,47 @@
             editingPanelIndex = index;
             const panel = panels[editingPanelIndex];
             
-            balloonEditorArea.innerHTML = ''; // Clear previous
+            balloonEditorArea.innerHTML = '';
             balloonEditorArea.style.backgroundImage = `url(${panel.src})`;
-            
-            panel.balloons.forEach((balloon, bIndex) => {
-                const balloonElem = document.createElement('div');
-                balloonElem.className = 'draggable-balloon';
-                balloonElem.textContent = balloon.text;
-                balloonElem.style.left = (balloon.x || 50) + 'px';
-                balloonElem.style.top = (balloon.y || 50) + 'px';
+
+            // Create a temporary image to calculate the aspect ratio for the editor view
+            const img = new Image();
+            img.onload = () => {
+                const editorAreaRect = balloonEditorArea.getBoundingClientRect();
+                const aspectRatio = img.width / img.height;
+                let imgRenderWidth = editorAreaRect.width;
+                let imgRenderHeight = imgRenderWidth / aspectRatio;
+
+                if (imgRenderHeight > editorAreaRect.height) {
+                    imgRenderHeight = editorAreaRect.height;
+                    imgRenderWidth = imgRenderHeight * aspectRatio;
+                }
                 
-                // Store data attributes to link element to data object
-                balloonElem.dataset.x = balloon.x || 50;
-                balloonElem.dataset.y = balloon.y || 50;
-                balloonElem.dataset.index = bIndex;
+                // This is the actual rendered size of the image inside the 'contain' div
+                const imgRenderedRect = {
+                    width: imgRenderWidth,
+                    height: imgRenderHeight,
+                    x: (editorAreaRect.width - imgRenderWidth) / 2,
+                    y: (editorAreaRect.height - imgRenderHeight) / 2
+                };
 
-                balloonEditorArea.appendChild(balloonElem);
-            });
+                panel.balloons.forEach((balloon, bIndex) => {
+                    const balloonElem = document.createElement('div');
+                    balloonElem.className = 'draggable-balloon';
+                    balloonElem.textContent = balloon.text;
+                    
+                    // Position based on percentage of the image's rendered size
+                    const left = imgRenderedRect.x + (balloon.x * imgRenderedRect.width);
+                    const top = imgRenderedRect.y + (balloon.y * imgRenderedRect.height);
+                    
+                    balloonElem.style.left = left + 'px';
+                    balloonElem.style.top = top + 'px';
+                    balloonElem.dataset.index = bIndex;
 
+                    balloonEditorArea.appendChild(balloonElem);
+                });
+            };
+            img.src = panel.src;
             balloonEditorModal.style.display = 'flex';
         }
 
@@ -353,178 +309,72 @@
             listeners: {
                 move(event) {
                     const target = event.target;
-                    // Keep the dragged position in the data-x/data-y attributes
-                    let x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                    let y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-
-                    // Translate the element
-                    target.style.transform = `translate(${x}px, ${y}px)`;
-
-                    // Update the position attributes
-                    target.setAttribute('data-x', x);
-                    target.setAttribute('data-y', y);
+                    const x = (parseFloat(target.style.left) || 0) + event.dx;
+                    const y = (parseFloat(target.style.top) || 0) + event.dy;
+                    target.style.left = x + 'px';
+                    target.style.top = y + 'px';
                 },
                 end(event) {
                     const target = event.target;
                     const balloonIndex = parseInt(target.dataset.index);
-                    const newX = parseFloat(target.dataset.x);
-                    const newY = parseFloat(target.dataset.y);
+                    
+                    // Now, convert the final pixel position to a percentage
+                    const finalX = parseFloat(target.style.left) || 0;
+                    const finalY = parseFloat(target.style.top) || 0;
 
-                    // Update the actual data object in our `panels` array
-                    if(editingPanelIndex > -1 && panels[editingPanelIndex].balloons[balloonIndex]) {
-                       panels[editingPanelIndex].balloons[balloonIndex].x = newX;
-                       panels[editingPanelIndex].balloons[balloonIndex].y = newY;
-                    }
-                    // Reset transform and set position via left/top for persistence
-                    target.style.transform = '';
-                    target.style.left = newX + 'px';
-                    target.style.top = newY + 'px';
+                    const editorAreaRect = balloonEditorArea.getBoundingClientRect();
+                    const panel = panels[editingPanelIndex];
+                    
+                    // Re-calculate the rendered image size to get the base for our percentage
+                    const img = new Image();
+                    img.onload = () => {
+                        const aspectRatio = img.width / img.height;
+                        let imgRenderWidth = editorAreaRect.width;
+                        let imgRenderHeight = imgRenderWidth / aspectRatio;
+
+                        if (imgRenderHeight > editorAreaRect.height) {
+                            imgRenderHeight = editorAreaRect.height;
+                            imgRenderWidth = imgRenderHeight * aspectRatio;
+                        }
+
+                        const imgRenderedRect = {
+                            width: imgRenderWidth,
+                            height: imgRenderHeight,
+                            x: (editorAreaRect.width - imgRenderWidth) / 2,
+                            y: (editorAreaRect.height - imgRenderHeight) / 2
+                        };
+                        
+                        // Calculate percentage relative to the image, not the whole div
+                        const percentX = (finalX - imgRenderedRect.x) / imgRenderedRect.width;
+                        const percentY = (finalY - imgRenderedRect.y) / imgRenderedRect.height;
+
+                        // Save the new percentage to our data object
+                        if(panel.balloons[balloonIndex]) {
+                           panel.balloons[balloonIndex].x = percentX;
+                           panel.balloons[balloonIndex].y = percentY;
+                        }
+                    };
+                    img.src = panel.src;
                 }
             }
         });
-
-
-        // --- Navigation and State ---
         
-        nextBtn.addEventListener('click', () => {
-            if (panels.length === 0) return;
-            const panel = panels[currentPanelIndex];
-            if (panel.balloons && currentBalloonIndex < panel.balloons.length - 1) {
-                currentBalloonIndex++;
-                renderBalloonsForPlayer();
-            } else if (currentPanelIndex < panels.length - 1) {
-                currentPanelIndex++;
-                currentBalloonIndex = -1;
-                playCurrentPanel();
-            }
-            updateProgress();
-        });
-
-        prevBtn.addEventListener('click', () => {
-             if (panels.length === 0) return;
-            if (currentBalloonIndex > -1) {
-                currentBalloonIndex--;
-                renderBalloonsForPlayer();
-            } else if (currentPanelIndex > 0) {
-                currentPanelIndex--;
-                const prevPanel = panels[currentPanelIndex];
-                currentBalloonIndex = prevPanel.balloons ? prevPanel.balloons.length - 1 : -1;
-                playCurrentPanel();
-            }
-            updateProgress();
-        });
-
-        function newProject() {
-            panels = [];
-            currentProjectId = null;
-            currentPanelIndex = 0;
-            currentBalloonIndex = -1;
-            webtoonTitle.value = '';
-            panelList.innerHTML = '';
-            playCurrentPanel();
-        }
-        
-        // --- Event Listeners and Init ---
-        
-        imageUpload.onchange = (e) => {
-            for (const file of e.target.files) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    panels.push({ src: event.target.result, balloons: [] });
-                    renderPanelList();
-                    if (panels.length === 1) playCurrentPanel();
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-
-        // Modal close buttons
+        // --- All other functions (save, load, nav, etc.) ---
+        function playCurrentPanel() { if (panels.length === 0 || currentPanelIndex < 0) { welcomeMessage.style.display = 'block'; playerImage.style.display = 'none'; return; } welcomeMessage.style.display = 'none'; playerImage.style.display = 'block'; const panel = panels[currentPanelIndex]; playerImage.src = panel.src; playerImage.onload = () => { updateProgress(); renderBalloonsForPlayer(); }; if (playerImage.complete) playerImage.onload(); }
+        nextBtn.addEventListener('click', () => { if (panels.length === 0) return; const panel = panels[currentPanelIndex]; if (panel.balloons && currentBalloonIndex < panel.balloons.length - 1) { currentBalloonIndex++; } else if (currentPanelIndex < panels.length - 1) { currentPanelIndex++; currentBalloonIndex = -1; } playCurrentPanel(); });
+        prevBtn.addEventListener('click', () => { if (panels.length === 0) return; if (currentBalloonIndex > -1) { currentBalloonIndex--; } else if (currentPanelIndex > 0) { currentPanelIndex--; const prevPanel = panels[currentPanelIndex]; currentBalloonIndex = prevPanel.balloons ? prevPanel.balloons.length - 1 : -1; } playCurrentPanel(); });
+        function newProject() { panels = []; currentProjectId = null; currentPanelIndex = 0; currentBalloonIndex = -1; webtoonTitle.value = ''; panelList.innerHTML = ''; playCurrentPanel(); }
+        imageUpload.onchange = (e) => { for (const file of e.target.files) { const reader = new FileReader(); reader.onload = (event) => { panels.push({ src: event.target.result, balloons: [] }); renderPanelList(); if (panels.length === 1) playCurrentPanel(); }; reader.readAsDataURL(file); } };
         document.getElementById('close-my-webtoons-modal').onclick = () => myWebtoonsModal.style.display = 'none';
-        document.getElementById('close-balloon-editor-modal').onclick = () => balloonEditorModal.style.display = 'none';
-        
-        // Other buttons
+        document.getElementById('save-and-close-balloon-editor-btn').onclick = () => balloonEditorModal.style.display = 'none';
         myWebtoonsBtn.onclick = () => { myWebtoonsModal.style.display = 'flex'; showMyWebtoons(); };
         newProjectBtn.addEventListener('click', newProject);
         saveWebtoonBtn.addEventListener('click', saveWebtoon);
-
-        // --- Firebase Functions and other helpers (updateProgress, etc.) ---
-        // (These functions are unchanged and are omitted here for brevity, but they are in the full code block)
-        async function saveWebtoon() {
-            if (!webtoonTitle.value) { alert('Please enter a title.'); return; }
-            const webtoonData = { title: webtoonTitle.value, panels, createdAt: serverTimestamp() };
-            try {
-                if (currentProjectId) {
-                    await updateDoc(doc(db, 'webtoons', currentProjectId), webtoonData);
-                    alert('Webtoon updated!');
-                } else {
-                    const docRef = await addDoc(collection(db, 'webtoons'), webtoonData);
-                    currentProjectId = docRef.id;
-                    alert('Webtoon saved!');
-                }
-            } catch (e) { console.error("Error saving:", e); alert("Could not save webtoon."); }
-        }
-        async function loadWebtoon(id) {
-            try {
-                const docSnap = await getDoc(doc(db, "webtoons", id));
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    panels = data.panels || [];
-                    webtoonTitle.value = data.title || '';
-                    currentProjectId = id;
-                    currentPanelIndex = 0;
-                    currentBalloonIndex = -1;
-                    renderPanelList();
-                    playCurrentPanel();
-                }
-            } catch (e) { console.error("Error loading:", e); alert("Could not load webtoon."); }
-        }
-        async function showMyWebtoons() {
-            const q = query(collection(db, "webtoons"), orderBy("createdAt", "desc"));
-            const querySnapshot = await getDocs(q);
-            const list = document.getElementById('webtoon-projects-list');
-            list.innerHTML = '';
-            querySnapshot.forEach((docSnap) => {
-                const item = document.createElement('li');
-                item.textContent = docSnap.data().title || 'Untitled';
-                const btnContainer = document.createElement('div');
-                const loadBtn = document.createElement('button');
-                loadBtn.textContent = 'Load';
-                loadBtn.onclick = () => { loadWebtoon(docSnap.id); myWebtoonsModal.style.display = 'none'; };
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.onclick = async () => {
-                    if (confirm('Are you sure?')) {
-                        await deleteDoc(doc(db, "webtoons", docSnap.id));
-                        showMyWebtoons();
-                    }
-                };
-                btnContainer.appendChild(loadBtn);
-                btnContainer.appendChild(deleteBtn);
-                item.appendChild(btnContainer);
-                list.appendChild(item);
-            });
-        }
-        function updateProgress() {
-            if (panels.length === 0) { progress.style.width = '0%'; return; }
-            const totalSteps = panels.reduce((acc, p) => acc + 1 + (p.balloons ? p.balloons.length : 0), 0);
-            let completedSteps = 0;
-            for (let i = 0; i < currentPanelIndex; i++) {
-                completedSteps += 1 + (panels[i].balloons ? panels[i].balloons.length : 0);
-            }
-            completedSteps += 1 + currentBalloonIndex;
-            progress.style.width = (completedSteps / totalSteps) * 100 + '%';
-        }
-
-        // --- Initial Setup ---
-        const urlParams = new URLSearchParams(window.location.search);
-        const webtoonId = urlParams.get('webtoonId');
-        if (webtoonId) {
-            document.getElementById('creator-panel').style.display = 'none';
-            loadWebtoon(webtoonId);
-        } else {
-            newProject();
-        }
-
+        async function saveWebtoon() { if (!webtoonTitle.value) { alert('Please enter a title.'); return; } const webtoonData = { title: webtoonTitle.value, panels, createdAt: serverTimestamp() }; try { if (currentProjectId) { await updateDoc(doc(db, 'webtoons', currentProjectId), webtoonData); alert('Webtoon updated!'); } else { const docRef = await addDoc(collection(db, 'webtoons'), webtoonData); currentProjectId = docRef.id; alert('Webtoon saved!'); } } catch (e) { console.error("Error saving:", e); alert("Could not save webtoon."); } }
+        async function loadWebtoon(id) { try { const docSnap = await getDoc(doc(db, "webtoons", id)); if (docSnap.exists()) { const data = docSnap.data(); panels = data.panels || []; webtoonTitle.value = data.title || ''; currentProjectId = id; currentPanelIndex = 0; currentBalloonIndex = -1; renderPanelList(); playCurrentPanel(); } } catch (e) { console.error("Error loading:", e); alert("Could not load webtoon."); } }
+        async function showMyWebtoons() { const q = query(collection(db, "webtoons"), orderBy("createdAt", "desc")); const querySnapshot = await getDocs(q); const list = document.getElementById('webtoon-projects-list'); list.innerHTML = ''; querySnapshot.forEach((docSnap) => { const item = document.createElement('li'); item.textContent = docSnap.data().title || 'Untitled'; const btnContainer = document.createElement('div'); const loadBtn = document.createElement('button'); loadBtn.textContent = 'Load'; loadBtn.onclick = () => { loadWebtoon(docSnap.id); myWebtoonsModal.style.display = 'none'; }; const deleteBtn = document.createElement('button'); deleteBtn.textContent = 'Delete'; deleteBtn.onclick = async () => { if (confirm('Are you sure?')) { await deleteDoc(doc(db, "webtoons", docSnap.id)); showMyWebtoons(); } }; btnContainer.appendChild(loadBtn); btnContainer.appendChild(deleteBtn); item.appendChild(btnContainer); list.appendChild(item); }); }
+        function updateProgress() { if (panels.length === 0) { progress.style.width = '0%'; return; } const totalSteps = panels.reduce((acc, p) => acc + 1 + (p.balloons ? p.balloons.length : 0), 0); let completedSteps = 0; for (let i = 0; i < currentPanelIndex; i++) { completedSteps += 1 + (panels[i].balloons ? panels[i].balloons.length : 0); } completedSteps += 1 + currentBalloonIndex; progress.style.width = (completedSteps / totalSteps) * 100 + '%'; }
+        const urlParams = new URLSearchParams(window.location.search); const webtoonId = urlParams.get('webtoonId'); if (webtoonId) { document.getElementById('creator-panel').style.display = 'none'; loadWebtoon(webtoonId); } else { newProject(); }
     </script>
 </body>
 </html>
