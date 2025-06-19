@@ -81,13 +81,17 @@
         
         /* Balloon Editor Specific Styles */
         #balloon-editor-area {
-            position: relative;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
+            position: relative; /* This is the positioning context for the image and balloons */
             height: var(--editor-height);
             border: 1px solid #555;
-            margin: 0 auto; /* Center the editor area */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #balloon-editor-area .editor-bg-image {
+            max-width: 100%;
+            max-height: 100%;
+            z-index: 1;
         }
         .draggable-balloon {
             position: absolute;
@@ -98,9 +102,8 @@
             padding: 10px;
             font-family: 'Bangers', cursive;
             cursor: move;
-            touch-action: none; /* for interact.js */
-            /* Start with transform, will be converted to left/top */
-            transform: translate(10%, 10%);
+            touch-action: none;
+            z-index: 10; /* Ensure balloons are on top of the image */
         }
     </style>
     <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
@@ -139,7 +142,7 @@
     <div id="balloon-editor-modal" class="modal">
         <div class="modal-content">
             <h3>Balloon Editor</h3>
-            <p>Drag balloons to position them relative to the image.</p>
+            <p>Drag balloons to position them on the image.</p>
             <div id="balloon-editor-area">
                  </div>
             <button id="save-and-close-balloon-editor-btn" style="align-self: flex-end;">Save & Close</button>
@@ -185,18 +188,15 @@
         const balloonEditorModal = document.getElementById('balloon-editor-modal');
         const balloonEditorArea = document.getElementById('balloon-editor-area');
         
-        // --- Core Functions ---
+        // --- Core Rendering Functions ---
         
         function renderBalloonsForPlayer() {
             balloonsContainer.innerHTML = '';
             const panel = panels[currentPanelIndex];
             if (!panel || currentBalloonIndex < 0) return;
 
-            // Get the actual rendered image's position and size
             const imageRect = playerImage.getBoundingClientRect();
             const containerRect = playerPanel.getBoundingClientRect();
-            
-            // Calculate the image's offset within the player panel
             const imageOffsetX = imageRect.left - containerRect.left;
             const imageOffsetY = imageRect.top - containerRect.top;
 
@@ -206,14 +206,10 @@
                     const balloonElem = document.createElement('div');
                     balloonElem.className = 'word-balloon';
                     balloonElem.textContent = balloonData.text;
-                    
-                    // Calculate position based on image size and offset
                     const left = imageOffsetX + (balloonData.x * imageRect.width);
                     const top = imageOffsetY + (balloonData.y * imageRect.height);
-                    
                     balloonElem.style.left = left + 'px';
                     balloonElem.style.top = top + 'px';
-                    
                     balloonsContainer.appendChild(balloonElem);
                 }
             }
@@ -245,8 +241,7 @@
                 });
 
                 item.querySelector('.add-balloon-btn').onclick = () => {
-                    // Add new balloons with a default percentage position
-                    panel.balloons.push({ text: 'New Text', x: 0.1, y: 0.1 });
+                    panel.balloons.push({ text: 'New Text', x: 0.1, y: 0.1 }); // Default to 10% / 10%
                     renderPanelList();
                 };
                 item.querySelector('.edit-balloons-btn').onclick = () => openBalloonEditor(index);
@@ -261,38 +256,26 @@
             editingPanelIndex = index;
             const panel = panels[editingPanelIndex];
             
-            balloonEditorArea.innerHTML = '';
-            balloonEditorArea.style.backgroundImage = `url(${panel.src})`;
+            balloonEditorArea.innerHTML = ''; // Clear previous content
 
-            // Create a temporary image to calculate the aspect ratio for the editor view
-            const img = new Image();
-            img.onload = () => {
-                const editorAreaRect = balloonEditorArea.getBoundingClientRect();
-                const aspectRatio = img.width / img.height;
-                let imgRenderWidth = editorAreaRect.width;
-                let imgRenderHeight = imgRenderWidth / aspectRatio;
-
-                if (imgRenderHeight > editorAreaRect.height) {
-                    imgRenderHeight = editorAreaRect.height;
-                    imgRenderWidth = imgRenderHeight * aspectRatio;
-                }
-                
-                // This is the actual rendered size of the image inside the 'contain' div
-                const imgRenderedRect = {
-                    width: imgRenderWidth,
-                    height: imgRenderHeight,
-                    x: (editorAreaRect.width - imgRenderWidth) / 2,
-                    y: (editorAreaRect.height - imgRenderHeight) / 2
-                };
+            // Create and append the background image element
+            const bgImage = document.createElement('img');
+            bgImage.className = 'editor-bg-image';
+            
+            // IMPORTANT: Render balloons only AFTER the image has loaded and has dimensions
+            bgImage.onload = () => {
+                const imageRect = bgImage.getBoundingClientRect();
+                const editorRect = balloonEditorArea.getBoundingClientRect();
+                const imageOffsetX = imageRect.left - editorRect.left;
+                const imageOffsetY = imageRect.top - editorRect.top;
 
                 panel.balloons.forEach((balloon, bIndex) => {
                     const balloonElem = document.createElement('div');
                     balloonElem.className = 'draggable-balloon';
                     balloonElem.textContent = balloon.text;
                     
-                    // Position based on percentage of the image's rendered size
-                    const left = imgRenderedRect.x + (balloon.x * imgRenderedRect.width);
-                    const top = imgRenderedRect.y + (balloon.y * imgRenderedRect.height);
+                    const left = imageOffsetX + (balloon.x * imageRect.width);
+                    const top = imageOffsetY + (balloon.y * imageRect.height);
                     
                     balloonElem.style.left = left + 'px';
                     balloonElem.style.top = top + 'px';
@@ -301,7 +284,9 @@
                     balloonEditorArea.appendChild(balloonElem);
                 });
             };
-            img.src = panel.src;
+
+            bgImage.src = panel.src; // Set src to trigger loading
+            balloonEditorArea.appendChild(bgImage);
             balloonEditorModal.style.display = 'flex';
         }
 
@@ -317,54 +302,36 @@
                 end(event) {
                     const target = event.target;
                     const balloonIndex = parseInt(target.dataset.index);
-                    
-                    // Now, convert the final pixel position to a percentage
                     const finalX = parseFloat(target.style.left) || 0;
                     const finalY = parseFloat(target.style.top) || 0;
 
-                    const editorAreaRect = balloonEditorArea.getBoundingClientRect();
-                    const panel = panels[editingPanelIndex];
+                    const bgImage = balloonEditorArea.querySelector('.editor-bg-image');
+                    if (!bgImage) return;
+
+                    const imageRect = bgImage.getBoundingClientRect();
+                    const editorRect = balloonEditorArea.getBoundingClientRect();
+                    const imageOffsetX = imageRect.left - editorRect.left;
+                    const imageOffsetY = imageRect.top - editorRect.top;
                     
-                    // Re-calculate the rendered image size to get the base for our percentage
-                    const img = new Image();
-                    img.onload = () => {
-                        const aspectRatio = img.width / img.height;
-                        let imgRenderWidth = editorAreaRect.width;
-                        let imgRenderHeight = imgRenderWidth / aspectRatio;
-
-                        if (imgRenderHeight > editorAreaRect.height) {
-                            imgRenderHeight = editorAreaRect.height;
-                            imgRenderWidth = imgRenderHeight * aspectRatio;
-                        }
-
-                        const imgRenderedRect = {
-                            width: imgRenderWidth,
-                            height: imgRenderHeight,
-                            x: (editorAreaRect.width - imgRenderWidth) / 2,
-                            y: (editorAreaRect.height - imgRenderHeight) / 2
-                        };
-                        
-                        // Calculate percentage relative to the image, not the whole div
-                        const percentX = (finalX - imgRenderedRect.x) / imgRenderedRect.width;
-                        const percentY = (finalY - imgRenderedRect.y) / imgRenderedRect.height;
-
-                        // Save the new percentage to our data object
-                        if(panel.balloons[balloonIndex]) {
-                           panel.balloons[balloonIndex].x = percentX;
-                           panel.balloons[balloonIndex].y = percentY;
-                        }
-                    };
-                    img.src = panel.src;
+                    const percentX = (finalX - imageOffsetX) / imageRect.width;
+                    const percentY = (finalY - imageOffsetY) / imageRect.height;
+                    
+                    const panel = panels[editingPanelIndex];
+                    if(panel && panel.balloons[balloonIndex]) {
+                       // Clamp values between 0 and 1 to prevent going off-image
+                       panel.balloons[balloonIndex].x = Math.max(0, Math.min(1, percentX));
+                       panel.balloons[balloonIndex].y = Math.max(0, Math.min(1, percentY));
+                    }
                 }
             }
         });
         
-        // --- All other functions (save, load, nav, etc.) ---
+        // --- All other functions (save, load, nav, etc.) are here for completeness ---
         function playCurrentPanel() { if (panels.length === 0 || currentPanelIndex < 0) { welcomeMessage.style.display = 'block'; playerImage.style.display = 'none'; return; } welcomeMessage.style.display = 'none'; playerImage.style.display = 'block'; const panel = panels[currentPanelIndex]; playerImage.src = panel.src; playerImage.onload = () => { updateProgress(); renderBalloonsForPlayer(); }; if (playerImage.complete) playerImage.onload(); }
-        nextBtn.addEventListener('click', () => { if (panels.length === 0) return; const panel = panels[currentPanelIndex]; if (panel.balloons && currentBalloonIndex < panel.balloons.length - 1) { currentBalloonIndex++; } else if (currentPanelIndex < panels.length - 1) { currentPanelIndex++; currentBalloonIndex = -1; } playCurrentPanel(); });
-        prevBtn.addEventListener('click', () => { if (panels.length === 0) return; if (currentBalloonIndex > -1) { currentBalloonIndex--; } else if (currentPanelIndex > 0) { currentPanelIndex--; const prevPanel = panels[currentPanelIndex]; currentBalloonIndex = prevPanel.balloons ? prevPanel.balloons.length - 1 : -1; } playCurrentPanel(); });
+        nextBtn.addEventListener('click', () => { if (panels.length === 0) return; const panel = panels[currentPanelIndex]; if (panel.balloons && currentBalloonIndex < panel.balloons.length - 1) { currentBalloonIndex++; renderBalloonsForPlayer(); } else if (currentPanelIndex < panels.length - 1) { currentPanelIndex++; currentBalloonIndex = -1; playCurrentPanel(); } else { playCurrentPanel(); } updateProgress(); });
+        prevBtn.addEventListener('click', () => { if (panels.length === 0) return; if (currentBalloonIndex > -1) { currentBalloonIndex--; renderBalloonsForPlayer(); } else if (currentPanelIndex > 0) { currentPanelIndex--; const prevPanel = panels[currentPanelIndex]; currentBalloonIndex = prevPanel.balloons ? prevPanel.balloons.length - 1 : -1; playCurrentPanel(); } else { playCurrentPanel(); } updateProgress(); });
         function newProject() { panels = []; currentProjectId = null; currentPanelIndex = 0; currentBalloonIndex = -1; webtoonTitle.value = ''; panelList.innerHTML = ''; playCurrentPanel(); }
-        imageUpload.onchange = (e) => { for (const file of e.target.files) { const reader = new FileReader(); reader.onload = (event) => { panels.push({ src: event.target.result, balloons: [] }); renderPanelList(); if (panels.length === 1) playCurrentPanel(); }; reader.readAsDataURL(file); } };
+        imageUpload.onchange = (e) => { for (const file of e.target.files) { const reader = new FileReader(); reader.onload = (event) => { panels.push({ src: event.result, balloons: [] }); renderPanelList(); if (panels.length === 1) playCurrentPanel(); }; reader.readAsDataURL(file); } };
         document.getElementById('close-my-webtoons-modal').onclick = () => myWebtoonsModal.style.display = 'none';
         document.getElementById('save-and-close-balloon-editor-btn').onclick = () => balloonEditorModal.style.display = 'none';
         myWebtoonsBtn.onclick = () => { myWebtoonsModal.style.display = 'flex'; showMyWebtoons(); };
