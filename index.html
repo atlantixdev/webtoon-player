@@ -59,14 +59,15 @@
             left: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none; /* Let clicks fall through the container */
         }
         .interactive-balloon {
             position: absolute;
-            background: rgba(255, 255, 255, 0.9);
+            background: white;
             color: black;
-            border-radius: 15px;
-            padding: 10px;
-            border: 2px solid #007bff;
+            border-radius: 50%;
+            padding: 15px;
+            border: 3px solid black;
             font-family: 'Bangers', cursive;
             cursor: move;
             touch-action: none;
@@ -74,9 +75,37 @@
             white-space: normal;
             word-wrap: break-word;
             box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: all; /* Balloons themselves are clickable */
         }
-        .interactive-balloon.resizable-active {
-             border: 2px dashed #ff9800;
+        .resizable-active {
+             border-color: #ff9800;
+        }
+        
+        /* --- Balloon Tail --- */
+        .balloon-svg-tail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9; /* Behind the balloon body */
+            overflow: visible;
+        }
+         .tail-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #ff9800;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: grab;
+            z-index: 11;
+            transform: translate(-50%, -50%);
+            pointer-events: all; /* The handle is clickable */
         }
         
         /* --- Other UI --- */
@@ -160,15 +189,7 @@
         const debugInfo = document.getElementById('debug-info');
         const toggleResizeBtn = document.getElementById('toggle-resize-btn');
 
-        function updateDebugInfo() {
-            const panel = panels[currentPanelIndex];
-            if (panel && panel.balloons.length > 0) {
-                const b = panel.balloons[0];
-                debugInfo.innerText = `B1: x:${b.x.toFixed(2)} y:${b.y.toFixed(2)} w:${b.width.toFixed(2)} h:${b.height.toFixed(2)}`;
-            } else {
-                debugInfo.innerText = "No balloons on this panel.";
-            }
-        }
+        function updateDebugInfo() { /* ... unchanged ... */ }
 
         function renderCurrentPanel() {
             const panel = panels[currentPanelIndex];
@@ -177,18 +198,14 @@
                 playerImage.style.display = 'none';
                 playerImage.src = "";
                 balloonsContainer.innerHTML = '';
-                updateDebugInfo();
                 return;
             }
-            
             const renderVisuals = () => {
                 welcomeMessage.style.display = 'none';
                 playerImage.style.display = 'block';
                 renderInteractiveBalloons();
                 updateProgress();
-                updateDebugInfo();
             };
-
             if (playerImage.src !== panel.src) {
                 playerImage.onload = renderVisuals;
                 playerImage.src = panel.src;
@@ -201,29 +218,47 @@
             balloonsContainer.innerHTML = '';
             const panel = panels[currentPanelIndex];
             if (!panel) return;
-
+            
             for (let i = 0; i <= currentVisibleBalloonIndex; i++) {
-                const balloon = panel.balloons[i];
-                if (balloon) {
+                const balloonData = panel.balloons[i];
+                if (balloonData) {
                     const balloonElem = document.createElement('div');
                     balloonElem.className = 'interactive-balloon';
-                    balloonElem.textContent = balloon.text;
-                    
-                    const container = document.getElementById('player-image-wrapper');
-                    const pixelWidth = balloon.width * container.offsetWidth;
-                    const pixelHeight = balloon.height * container.offsetHeight;
-                    const pixelX = balloon.x * container.offsetWidth;
-                    const pixelY = balloon.y * container.offsetHeight;
-                    
-                    balloonElem.style.width = pixelWidth + 'px';
-                    balloonElem.style.height = pixelHeight + 'px';
-                    balloonElem.style.transform = `translate(${pixelX}px, ${pixelY}px)`;
-                    
                     balloonElem.dataset.index = i;
-                    balloonElem.dataset.x = pixelX;
-                    balloonElem.dataset.y = pixelY;
+                    
+                    const svgContainer = document.createElement('div');
+                    svgContainer.style.position = 'absolute';
+                    svgContainer.style.top = '0';
+                    svgContainer.style.left = '0';
+                    svgContainer.style.width = '100%';
+                    svgContainer.style.height = '100%';
+                    svgContainer.style.pointerEvents = 'none';
+                    svgContainer.style.zIndex = '9';
+                    
+                    const tailSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    tailSvg.setAttribute('width', '100%');
+                    tailSvg.setAttribute('height', '100%');
+                    tailSvg.style.overflow = 'visible';
+                    const tailPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    tailPath.setAttribute('fill', 'white');
+                    tailPath.setAttribute('stroke', 'black');
+                    tailPath.setAttribute('stroke-width', '3');
+                    tailSvg.appendChild(tailPath);
+                    svgContainer.appendChild(tailSvg);
 
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = balloonData.text;
+                    
+                    const tailHandle = document.createElement('div');
+                    tailHandle.className = 'tail-handle';
+                    tailHandle.dataset.index = i;
+                    
+                    balloonElem.appendChild(svgContainer);
+                    balloonElem.appendChild(textSpan);
                     balloonsContainer.appendChild(balloonElem);
+                    balloonsContainer.appendChild(tailHandle); // Append handle to the main container
+
+                    updateBalloonVisuals(balloonElem);
                 }
             }
             interact('.interactive-balloon').resizable({ enabled: resizingEnabled });
@@ -231,56 +266,84 @@
                 el.classList.toggle('resizable-active', resizingEnabled);
             });
         }
+        
+        function updateBalloonVisuals(balloonElem) {
+            const index = parseInt(balloonElem.dataset.index);
+            const balloonData = panels[currentPanelIndex].balloons[index];
+            const container = document.getElementById('player-image-wrapper');
+            const tailHandle = document.querySelector(`.tail-handle[data-index="${index}"]`);
+            const tailPath = balloonElem.querySelector('path');
+            
+            const w = balloonData.width * container.offsetWidth;
+            const h = balloonData.height * container.offsetHeight;
+            const x = balloonData.x * container.offsetWidth;
+            const y = balloonData.y * container.offsetHeight;
+            balloonElem.style.width = w + 'px';
+            balloonElem.style.height = h + 'px';
+            balloonElem.style.transform = `translate(${x}px, ${y}px)`;
+
+            const tailX = balloonData.tail.x * container.offsetWidth;
+            const tailY = balloonData.tail.y * container.offsetHeight;
+            tailHandle.style.transform = `translate(${tailX}px, ${tailY}px)`;
+
+            const balloonCenterX = w / 2;
+            const balloonCenterY = h / 2;
+            
+            // Calculate tail tip position relative to the balloon's own top-left corner
+            const tailTipX = tailX - x;
+            const tailTipY = tailY - y;
+            
+            const angle = Math.atan2(tailTipY - balloonCenterY, tailTipX - balloonCenterX);
+            const p1Angle = angle - 0.4;
+            const p2Angle = angle + 0.4;
+            
+            const p1x = balloonCenterX + (w / 2) * Math.cos(p1Angle);
+            const p1y = balloonCenterY + (h / 2) * Math.sin(p1Angle);
+            const p2x = balloonCenterX + (w / 2) * Math.cos(p2Angle);
+            const p2y = balloonCenterY + (h / 2) * Math.sin(p2Angle);
+            
+            tailPath.setAttribute('d', `M ${tailTipX} ${tailTipY} L ${p1x} ${p1y} L ${p2x} ${p2y} Z`);
+        }
 
         function renderPanelList() {
-            panelList.innerHTML = '';
+             panelList.innerHTML = '';
             panels.forEach((panel, index) => {
                 const item = document.createElement('div');
                 item.className = 'panel-item';
-                item.innerHTML = `
-                    <div class="panel-item-header">
-                        <img src="${panel.src}" alt="Panel ${index + 1}">
-                        <span>Panel ${index + 1}</span>
-                    </div>
-                    <div class="balloons-list"></div>
-                    <button class="add-balloon-btn secondary-btn">Add Balloon</button>
-                `;
+                item.innerHTML = `<div class="panel-item-header"><img src="${panel.src}"><span>Panel ${index + 1}</span></div><div class="balloons-list"></div><button class="add-balloon-btn secondary-btn">Add</button>`;
                 
                 const balloonsList = item.querySelector('.balloons-list');
                 if (panel.balloons) {
                     panel.balloons.forEach((balloon, bIndex) => {
-                        const balloonInput = document.createElement('input');
-                        balloonInput.type = 'text';
-                        balloonInput.value = balloon.text;
-                        balloonInput.oninput = (e) => {
-                            panel.balloons[bIndex].text = e.target.value;
-                            renderInteractiveBalloons();
-                        };
-                        balloonsList.appendChild(balloonInput);
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.value = balloon.text;
+                        input.oninput = (e) => { panel.balloons[bIndex].text = e.target.value; renderInteractiveBalloons(); };
+                        balloonsList.appendChild(input);
                     });
                 }
-
                 item.querySelector('.add-balloon-btn').onclick = () => {
-                    panel.balloons.push({ text: 'New Text', x: 0.375, y: 0.425, width: 0.25, height: 0.15 });
+                    panel.balloons.push({ text: 'New Text', x: 0.375, y: 0.4, width: 0.25, height: 0.2, tail: { x: 0.5, y: 0.7 } });
                     renderPanelList();
                     currentVisibleBalloonIndex = panel.balloons.length - 1;
                     renderInteractiveBalloons();
                 };
-                
                 panelList.appendChild(item);
             });
         }
         
+        // --- Setup InteractJS ---
         interact('.interactive-balloon')
             .draggable({
                 listeners: {
                     move(event) {
                         const target = event.target;
-                        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                        const x = (parseFloat(target.dataset.x) || 0) + event.dx;
+                        const y = (parseFloat(target.dataset.y) || 0) + event.dy;
                         target.style.transform = `translate(${x}px, ${y}px)`;
-                        target.setAttribute('data-x', x);
-                        target.setAttribute('data-y', y);
+                        target.dataset.x = x;
+                        target.dataset.y = y;
+                        updateBalloonVisuals(target);
                     },
                     end(event) {
                         const target = event.target;
@@ -288,30 +351,28 @@
                         const panel = panels[currentPanelIndex];
                         const container = document.getElementById('player-image-wrapper');
                         if (panel && panel.balloons[balloonIndex]) {
-                            const x = parseFloat(target.getAttribute('data-x')) || 0;
-                            const y = parseFloat(target.getAttribute('data-y')) || 0;
-                            panel.balloons[balloonIndex].x = x / container.offsetWidth;
-                            panel.balloons[balloonIndex].y = y / container.offsetHeight;
-                            updateDebugInfo();
+                            panel.balloons[balloonIndex].x = (parseFloat(target.dataset.x) || 0) / container.offsetWidth;
+                            panel.balloons[balloonIndex].y = (parseFloat(target.dataset.y) || 0) / container.offsetHeight;
                         }
                     }
                 }
             })
             .resizable({
-                enabled: resizingEnabled,
+                enabled: false,
                 edges: { top: true, left: true, bottom: true, right: true },
                 listeners: {
                     move: function (event) {
                         const target = event.target;
-                        let x = parseFloat(target.getAttribute('data-x')) || 0;
-                        let y = parseFloat(target.getAttribute('data-y')) || 0;
+                        let x = parseFloat(target.dataset.x) || 0;
+                        let y = parseFloat(target.dataset.y) || 0;
                         target.style.width = event.rect.width + 'px';
                         target.style.height = event.rect.height + 'px';
                         x += event.deltaRect.left;
                         y += event.deltaRect.top;
                         target.style.transform = `translate(${x}px, ${y}px)`;
-                        target.setAttribute('data-x', x);
-                        target.setAttribute('data-y', y);
+                        target.dataset.x = x;
+                        target.dataset.y = y;
+                        updateBalloonVisuals(target);
                     },
                     end: function(event) {
                         const target = event.target;
@@ -319,28 +380,47 @@
                         const panel = panels[currentPanelIndex];
                         const container = document.getElementById('player-image-wrapper');
                         if (panel && panel.balloons[balloonIndex]) {
-                            const x = parseFloat(target.getAttribute('data-x')) || 0;
-                            const y = parseFloat(target.getAttribute('data-y')) || 0;
-                            panel.balloons[balloonIndex].x = x / container.offsetWidth;
-                            panel.balloons[balloonIndex].y = y / container.offsetHeight;
+                            panel.balloons[balloonIndex].x = (parseFloat(target.dataset.x) || 0) / container.offsetWidth;
+                            panel.balloons[balloonIndex].y = (parseFloat(target.dataset.y) || 0) / container.offsetHeight;
                             panel.balloons[balloonIndex].width = event.rect.width / container.offsetWidth;
                             panel.balloons[balloonIndex].height = event.rect.height / container.offsetHeight;
-                            updateDebugInfo();
                         }
                     }
                 }
             });
-        
-        document.getElementById('next-btn').addEventListener('click', () => { const panel = panels[currentPanelIndex]; if (!panel) return; if (currentVisibleBalloonIndex < panel.balloons.length - 1) { currentVisibleBalloonIndex++; renderInteractiveBalloons(); } else if (currentPanelIndex < panels.length - 1) { currentPanelIndex++; currentVisibleBalloonIndex = -1; renderCurrentPanel(); } updateProgress(); updateDebugInfo(); });
-        document.getElementById('prev-btn').addEventListener('click', () => { if (currentVisibleBalloonIndex > -1) { currentVisibleBalloonIndex--; renderInteractiveBalloons(); } else if (currentPanelIndex > 0) { currentPanelIndex--; const prevPanel = panels[currentPanelIndex]; currentVisibleBalloonIndex = prevPanel.balloons ? prevPanel.balloons.length - 1 : -1; renderCurrentPanel(); } updateProgress(); updateDebugInfo(); });
-        
-        toggleResizeBtn.addEventListener('click', () => {
-            resizingEnabled = !resizingEnabled;
-            toggleResizeBtn.textContent = resizingEnabled ? 'Disable Resizing' : 'Enable Resizing';
-            toggleResizeBtn.style.backgroundColor = resizingEnabled ? '#ff9800' : '#5a6268';
-            renderInteractiveBalloons();
+
+        interact('.tail-handle').draggable({
+            listeners: {
+                move(event) {
+                    const handle = event.target;
+                    const x = (parseFloat(handle.dataset.x) || 0) + event.dx;
+                    const y = (parseFloat(handle.dataset.y) || 0) + event.dy;
+                    handle.style.transform = `translate(${x}px, ${y}px)`;
+                    handle.dataset.x = x;
+                    handle.dataset.y = y;
+                    // Find the corresponding balloon and update its visuals
+                    const balloonElem = document.querySelector(`.interactive-balloon[data-index="${handle.dataset.index}"]`);
+                    if(balloonElem) updateBalloonVisuals(balloonElem);
+                },
+                end(event) {
+                    const handle = event.target;
+                    const balloonIndex = parseInt(handle.dataset.index);
+                    const panel = panels[currentPanelIndex];
+                    const container = document.getElementById('player-image-wrapper');
+                    if(panel && panel.balloons[balloonIndex]){
+                        const x = parseFloat(handle.dataset.x) || 0;
+                        const y = parseFloat(handle.dataset.y) || 0;
+                        panel.balloons[balloonIndex].tail.x = x / container.offsetWidth;
+                        panel.balloons[balloonIndex].tail.y = y / container.offsetHeight;
+                    }
+                }
+            }
         });
         
+        // --- Navigation and Event Listeners ---
+        document.getElementById('next-btn').addEventListener('click', () => { const panel = panels[currentPanelIndex]; if (!panel) return; if (currentVisibleBalloonIndex < panel.balloons.length - 1) { currentVisibleBalloonIndex++; renderInteractiveBalloons(); } else if (currentPanelIndex < panels.length - 1) { currentPanelIndex++; currentVisibleBalloonIndex = -1; renderCurrentPanel(); } updateProgress(); });
+        document.getElementById('prev-btn').addEventListener('click', () => { if (currentVisibleBalloonIndex > -1) { currentVisibleBalloonIndex--; renderInteractiveBalloons(); } else if (currentPanelIndex > 0) { currentPanelIndex--; const prevPanel = panels[currentPanelIndex]; currentVisibleBalloonIndex = prevPanel.balloons ? prevPanel.balloons.length - 1 : -1; renderCurrentPanel(); } updateProgress(); });
+        toggleResizeBtn.addEventListener('click', () => { resizingEnabled = !resizingEnabled; toggleResizeBtn.textContent = resizingEnabled ? 'Disable Resizing' : 'Enable Resizing'; toggleResizeBtn.style.backgroundColor = resizingEnabled ? '#ff9800' : '#5a6268'; renderInteractiveBalloons(); });
         function newProject() { panels = []; currentProjectId = null; currentPanelIndex = 0; currentVisibleBalloonIndex = -1; renderPanelList(); renderCurrentPanel(); }
         document.getElementById('image-upload').onchange = (e) => { for (const file of e.target.files) { const reader = new FileReader(); reader.onload = (event) => { panels.push({ src: event.target.result, balloons: [] }); renderPanelList(); if (panels.length === 1) { currentPanelIndex = 0; currentVisibleBalloonIndex = -1; renderCurrentPanel(); } }; reader.readAsDataURL(file); } };
         document.getElementById('my-webtoons-btn').onclick = () => { document.getElementById('my-webtoons-modal').style.display = 'flex'; showMyWebtoons(); };
