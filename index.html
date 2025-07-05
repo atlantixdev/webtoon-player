@@ -41,10 +41,11 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            max-width: 90%;
-            max-height: 90%;
+            width: 90%;
+            height: 90%;
         }
         #player-image {
+            display: none; /* Hide until src is loaded */
             max-width: 100%;
             max-height: 100%;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
@@ -140,4 +141,227 @@
             projectId: "n-webtoon-player",
             storageBucket: "n-webtoon-player.firebasestorage.app",
             messagingSenderId: "1040378436513",
-            appId: "1:10403784365
+            appId: "1:1040378436513:web:4320ebcef0c0a727f949e0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let panels = [];
+        let currentPanelIndex = 0;
+        let currentVisibleBalloonIndex = -1;
+        let currentProjectId = null;
+        let resizingEnabled = false;
+
+        const playerImage = document.getElementById('player-image');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const balloonsContainer = document.getElementById('balloons-container');
+        const panelList = document.getElementById('panel-list');
+        const debugInfo = document.getElementById('debug-info');
+        const toggleResizeBtn = document.getElementById('toggle-resize-btn');
+
+        function updateDebugInfo() {
+            const panel = panels[currentPanelIndex];
+            if (panel && panel.balloons.length > 0) {
+                const b = panel.balloons[0];
+                debugInfo.innerText = `B1: x:${b.x.toFixed(2)} y:${b.y.toFixed(2)} w:${b.width.toFixed(2)} h:${b.height.toFixed(2)}`;
+            } else {
+                debugInfo.innerText = "No balloons on this panel.";
+            }
+        }
+
+        // --- REWRITTEN RENDER FUNCTION ---
+        function renderCurrentPanel() {
+            const panel = panels[currentPanelIndex];
+
+            // If no panel exists for the current index, show welcome message and hide image.
+            if (!panel) {
+                welcomeMessage.style.display = 'block';
+                playerImage.style.display = 'none';
+                playerImage.src = ""; // Clear src to remove broken icon
+                balloonsContainer.innerHTML = '';
+                updateDebugInfo();
+                return;
+            }
+
+            // This function will run once the image is confirmed to be loaded
+            const renderVisuals = () => {
+                welcomeMessage.style.display = 'none';
+                playerImage.style.display = 'block';
+                renderInteractiveBalloons();
+                updateProgress();
+                updateDebugInfo();
+            };
+
+            // If the image is already the correct one and fully loaded, render immediately.
+            if (playerImage.src === panel.src && playerImage.complete) {
+                renderVisuals();
+            } else {
+                // Otherwise, set the onload HANDLER FIRST, then set the src to trigger loading.
+                playerImage.onload = renderVisuals;
+                playerImage.src = panel.src;
+            }
+        }
+        
+        function renderInteractiveBalloons() {
+            balloonsContainer.innerHTML = '';
+            const panel = panels[currentPanelIndex];
+            if (!panel) return;
+            
+            const container = document.getElementById('player-image-wrapper');
+
+            for (let i = 0; i <= currentVisibleBalloonIndex; i++) {
+                const balloon = panel.balloons[i];
+                if (balloon) {
+                    const balloonElem = document.createElement('div');
+                    balloonElem.className = 'interactive-balloon';
+                    balloonElem.textContent = balloon.text;
+                    
+                    const pixelWidth = balloon.width * container.offsetWidth;
+                    const pixelHeight = balloon.height * container.offsetHeight;
+                    const pixelX = balloon.x * container.offsetWidth;
+                    const pixelY = balloon.y * container.offsetHeight;
+                    
+                    balloonElem.style.width = pixelWidth + 'px';
+                    balloonElem.style.height = pixelHeight + 'px';
+                    balloonElem.style.transform = `translate(${pixelX}px, ${pixelY}px)`;
+                    
+                    balloonElem.dataset.index = i;
+                    balloonElem.dataset.x = pixelX;
+                    balloonElem.dataset.y = pixelY;
+
+                    balloonsContainer.appendChild(balloonElem);
+                }
+            }
+            interact('.interactive-balloon').resizable({ enabled: resizingEnabled });
+            document.querySelectorAll('.interactive-balloon').forEach(el => {
+                el.classList.toggle('resizable-active', resizingEnabled);
+            });
+        }
+
+        function renderPanelList() {
+            panelList.innerHTML = '';
+            panels.forEach((panel, index) => {
+                const item = document.createElement('div');
+                item.className = 'panel-item';
+                item.innerHTML = `
+                    <div class="panel-item-header">
+                        <img src="${panel.src}" alt="Panel ${index + 1}">
+                        <span>Panel ${index + 1}</span>
+                    </div>
+                    <div class="balloons-list"></div>
+                    <button class="add-balloon-btn secondary-btn">Add Balloon</button>
+                `;
+                
+                const balloonsList = item.querySelector('.balloons-list');
+                if (panel.balloons) {
+                    panel.balloons.forEach((balloon, bIndex) => {
+                        const balloonInput = document.createElement('input');
+                        balloonInput.type = 'text';
+                        balloonInput.value = balloon.text;
+                        balloonInput.oninput = (e) => {
+                            panel.balloons[bIndex].text = e.target.value;
+                            renderInteractiveBalloons();
+                        };
+                        balloonsList.appendChild(balloonInput);
+                    });
+                }
+
+                item.querySelector('.add-balloon-btn').onclick = () => {
+                    panel.balloons.push({ text: 'New Text', x: 0.375, y: 0.425, width: 0.25, height: 0.15 });
+                    renderPanelList();
+                    currentVisibleBalloonIndex = panel.balloons.length - 1;
+                    renderInteractiveBalloons();
+                };
+                
+                panelList.appendChild(item);
+            });
+        }
+        
+        // --- Setup InteractJS ---
+        interact('.interactive-balloon')
+            .draggable({
+                listeners: {
+                    move(event) {
+                        const target = event.target;
+                        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+                        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+                        target.style.transform = `translate(${x}px, ${y}px)`;
+                        target.setAttribute('data-x', x);
+                        target.setAttribute('data-y', y);
+                    },
+                    end(event) {
+                        const target = event.target;
+                        const balloonIndex = parseInt(target.dataset.index);
+                        const panel = panels[currentPanelIndex];
+                        const container = document.getElementById('player-image-wrapper');
+                        if (panel && panel.balloons[balloonIndex]) {
+                            const x = parseFloat(target.getAttribute('data-x')) || 0;
+                            const y = parseFloat(target.getAttribute('data-y')) || 0;
+                            panel.balloons[balloonIndex].x = x / container.offsetWidth;
+                            panel.balloons[balloonIndex].y = y / container.offsetHeight;
+                            updateDebugInfo();
+                        }
+                    }
+                }
+            })
+            .resizable({
+                enabled: false,
+                edges: { top: true, left: true, bottom: true, right: true },
+                listeners: {
+                    move: function (event) {
+                        const target = event.target;
+                        let x = parseFloat(target.getAttribute('data-x')) || 0;
+                        let y = parseFloat(target.getAttribute('data-y')) || 0;
+                        target.style.width = event.rect.width + 'px';
+                        target.style.height = event.rect.height + 'px';
+                        x += event.deltaRect.left;
+                        y += event.deltaRect.top;
+                        target.style.transform = `translate(${x}px, ${y}px)`;
+                        target.setAttribute('data-x', x);
+                        target.setAttribute('data-y', y);
+                    },
+                    end: function(event) {
+                        const target = event.target;
+                        const balloonIndex = parseInt(target.dataset.index);
+                        const panel = panels[currentPanelIndex];
+                        const container = document.getElementById('player-image-wrapper');
+                        if (panel && panel.balloons[balloonIndex]) {
+                            const x = parseFloat(target.getAttribute('data-x')) || 0;
+                            const y = parseFloat(target.getAttribute('data-y')) || 0;
+                            panel.balloons[balloonIndex].x = x / container.offsetWidth;
+                            panel.balloons[balloonIndex].y = y / container.offsetHeight;
+                            panel.balloons[balloonIndex].width = event.rect.width / container.offsetWidth;
+                            panel.balloons[balloonIndex].height = event.rect.height / container.offsetHeight;
+                            updateDebugInfo();
+                        }
+                    }
+                }
+            });
+        
+        // --- Navigation and Event Listeners ---
+        document.getElementById('next-btn').addEventListener('click', () => { const panel = panels[currentPanelIndex]; if (!panel) return; if (currentVisibleBalloonIndex < panel.balloons.length - 1) { currentVisibleBalloonIndex++; renderInteractiveBalloons(); } else if (currentPanelIndex < panels.length - 1) { currentPanelIndex++; currentVisibleBalloonIndex = -1; renderCurrentPanel(); } updateProgress(); updateDebugInfo(); });
+        document.getElementById('prev-btn').addEventListener('click', () => { if (currentVisibleBalloonIndex > -1) { currentVisibleBalloonIndex--; renderInteractiveBalloons(); } else if (currentPanelIndex > 0) { currentPanelIndex--; const prevPanel = panels[currentPanelIndex]; currentVisibleBalloonIndex = prevPanel.balloons ? prevPanel.balloons.length - 1 : -1; renderCurrentPanel(); } updateProgress(); updateDebugInfo(); });
+        
+        toggleResizeBtn.addEventListener('click', () => {
+            resizingEnabled = !resizingEnabled;
+            toggleResizeBtn.textContent = resizingEnabled ? 'Disable Resizing' : 'Enable Resizing';
+            toggleResizeBtn.style.backgroundColor = resizingEnabled ? '#ff9800' : '#5a6268';
+            renderInteractiveBalloons();
+        });
+        
+        function newProject() { panels = []; currentProjectId = null; currentPanelIndex = 0; currentVisibleBalloonIndex = -1; renderPanelList(); renderCurrentPanel(); }
+        document.getElementById('image-upload').onchange = (e) => { for (const file of e.target.files) { const reader = new FileReader(); reader.onload = (event) => { panels.push({ src: event.target.result, balloons: [] }); renderPanelList(); if (panels.length === 1) { currentPanelIndex = 0; currentVisibleBalloonIndex = -1; renderCurrentPanel(); } }; reader.readAsDataURL(file); } };
+        document.getElementById('my-webtoons-btn').onclick = () => { document.getElementById('my-webtoons-modal').style.display = 'flex'; showMyWebtoons(); };
+        document.getElementById('close-my-webtoons-modal').onclick = () => document.getElementById('my-webtoons-modal').style.display = 'none';
+        document.getElementById('save-webtoon-btn').addEventListener('click', saveWebtoon);
+        async function saveWebtoon() { const title = document.getElementById('webtoon-title').value; if (!title) { alert('Please enter a title.'); return; } const webtoonData = { title, panels: JSON.parse(JSON.stringify(panels)), createdAt: serverTimestamp() }; try { if (currentProjectId) { await updateDoc(doc(db, 'webtoons', currentProjectId), webtoonData); } else { const docRef = await addDoc(collection(db, 'webtoons'), webtoonData); currentProjectId = docRef.id; } alert('Webtoon saved!'); } catch (e) { console.error("Error saving:", e); } }
+        async function loadWebtoon(id) { try { const docSnap = await getDoc(doc(db, "webtoons", id)); if (docSnap.exists()) { const data = docSnap.data(); panels = data.panels || []; document.getElementById('webtoon-title').value = data.title || ''; currentProjectId = id; currentPanelIndex = 0; currentVisibleBalloonIndex = -1; renderPanelList(); renderCurrentPanel(); } } catch (e) { console.error("Error loading:", e); } }
+        async function showMyWebtoons() { const q = query(collection(db, "webtoons"), orderBy("createdAt", "desc")); const querySnapshot = await getDocs(q); const list = document.getElementById('webtoon-projects-list'); list.innerHTML = ''; querySnapshot.forEach((docSnap) => { const item = document.createElement('li'); item.textContent = docSnap.data().title || 'Untitled'; const btnContainer = document.createElement('div'); const loadBtn = document.createElement('button'); loadBtn.textContent = 'Load'; loadBtn.onclick = () => { loadWebtoon(docSnap.id); document.getElementById('my-webtoons-modal').style.display = 'none'; }; btnContainer.appendChild(loadBtn); item.appendChild(btnContainer); list.appendChild(item); }); }
+        function updateProgress() { if (panels.length === 0) { progress.style.width = '0%'; return; } const totalSteps = panels.reduce((acc, p) => acc + 1 + (p.balloons ? p.balloons.length : 0), 0); let completedSteps = 0; for (let i = 0; i < currentPanelIndex; i++) { completedSteps += 1 + (panels[i].balloons ? panels[i].balloons.length : 0); } completedSteps += currentVisibleBalloonIndex + 1; progress.style.width = (completedSteps / totalSteps) * 100 + '%'; }
+        
+        // --- Initial Load ---
+        renderCurrentPanel();
+    </script>
+</body>
+</html>
